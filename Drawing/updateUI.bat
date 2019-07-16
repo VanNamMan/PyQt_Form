@@ -1,0 +1,1 @@
+pyuic5 -x myForm.ui -o ui_myForm.py

@@ -3,17 +3,36 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from ui_myForm import Ui_myForm
 
+import os,time,cv2,numpy as np
+
+class struct(object):
+    def __init__(self,**kwargs):
+        self.__dict__.update(kwargs)
+
+Font = struct(color="#00ff7f",lw=2,font=("Arial 10 bold"))
+
 class myForm(QMainWindow):
     def __init__(self):
         super(myForm, self).__init__(None)
         self.setWindowFlags(Qt.Window)
         self.ui = Ui_myForm()
         self.ui.setupUi(self)
-
+        # action 
+        action = [self.ui.actionOpen,self.ui.actionSave,self.ui.actionSave_As,self.ui.actionExit
+                    ,self.ui.actionColor,self.ui.actionFont]
+        tooltip = ["Open File","Save Cropped Image","Save As File","Exit?","Color","Font"]
+        shortcut = ["Ctrl+n","Ctrl+s","Ctrl+Shift+s","Ctrl+q","Ctrl+a","Ctrl+d"]
+        icon = ["ico/open.png","ico/save.png","ico/save_as.png","ico/exit.png","ico/color.png","ico/font.png"]
+        for i,act in enumerate(action) : 
+            act.triggered.connect(self.trigger)
+            act.setStatusTip(tooltip[i])
+            act.setShortcut(shortcut[i])
+            act.setIcon(QIcon(icon[i]))
+            
         self.ui.widget.installEventFilter(self)
 
-        self.image = QPixmap("images.png")
-        self.qImage = self.image.toImage()
+        self.image = None
+        self.qImage = None
 
         self.drawing = False
         self.startPoint = QPoint()
@@ -21,9 +40,10 @@ class myForm(QMainWindow):
 
         # painter
     def paintEvent(self, event):
+        if self.image is None:
+            return
         painter = QPainter(self)
-        r = self.ui.widget.geometry()
-        painter.drawPixmap(r, self.image)
+        painter.drawPixmap(self.ui.widget.geometry(), self.image)
         painter.drawPixmap(self.ui.miniWidget.geometry(),QPixmap().fromImage(self.qImage.copy(self.rectCrop)))
 
     def eventFilter(self, obj, event):
@@ -37,7 +57,7 @@ class myForm(QMainWindow):
             pass
 
         elif event.type() == QEvent.MouseMove:
-            if self.drawing:
+            if self.drawing and self.image is not None:
                 # self.image = QPixmap("images.png")
                 self.image = QPixmap().fromImage(self.qImage)
 
@@ -46,7 +66,7 @@ class myForm(QMainWindow):
 
                 painter = QPainter(self.image)
                 painter.begin(self)
-                painter.setPen(QPen(Qt.red,1, Qt.SolidLine))
+                painter.setPen(QPen(QColor(Font.color),Font.lw,Qt.SolidLine))
 
                 painter.drawRect(int(self.startPoint.x()*rx),int(self.startPoint.y()*ry)
                                 ,int(event.x()*rx-self.startPoint.x()*rx),int(event.y()*ry-self.startPoint.y()*ry))
@@ -61,38 +81,35 @@ class myForm(QMainWindow):
             pass
 
         return super(myForm, self).eventFilter(obj, event)
-
-    # def mousePressEvent(self, event):
-    #     if event.button() == Qt.LeftButton:
-    #         self.drawing = True
-    #         self.startPoint = event.pos()
-
-    # def mouseMoveEvent(self, event):
-    #     print("mouse")
-    #     if event.buttons() and Qt.LeftButton and self.drawing:
-    #         # self.image = QPixmap("images.png")
-    #         self.image = QPixmap().fromImage(self.qImage)
-
-    #         rx = self.image.width()/self.ui.widget.width()
-    #         ry = self.image.height()/self.ui.widget.height()
-
-    #         painter = QPainter(self.image)
-    #         painter.begin(self)
-    #         painter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
-
-    #         x,y = self.ui.widget.x(),self.ui.widget.y()
-    #         painter.drawRect(self.startPoint.x()-x,self.startPoint.y()-y
-    #         ,self.event.x()-x,self.event.y()-y)
-
-    #         # self.lastPoint = event.pos()
-    #         painter.end()
-    #         self.update()
-            
-
-    # def mouseReleaseEvent(self, event):
-    #     if event.button == Qt.LeftButton:
-    #         self.drawing = False
-
+    def trigger(self):
+        if self.sender() == self.ui.actionOpen:
+            print("open")
+            fileName, _ = QFileDialog.getOpenFileName(self,"Select File", "","All Files (*);;JPG Files (*.jpg)")
+            if fileName == "":
+                return
+            self.image = QPixmap(fileName)  
+            self.qImage = self.image.toImage()  
+        elif self.sender() == self.ui.actionColor:
+            color = QColorDialog.getColor()
+            if color.isValid():
+                Font.color = color.name()  
+        elif self.sender() == self.ui.actionFont:
+            font, ok = QFontDialog.getFont()
+            if ok :
+                Font.font = font.toString()
+        elif self.sender() == self.ui.actionSave:
+            filename = time.strftime("data/%d%m%y_%H%M%S.jpg")
+            qPixmap = QPixmap().fromImage(self.qImage.copy(self.rectCrop))
+            qPixmap.save(filename)
+            pass
+        pass
+    
+    # ======= Function
+    # def showImage(self,widget,qPixmap):
+    #     painter = QPainter(self)
+    #     painter.drawPixmap(widget.geometry(),qPixmap)
+    #     del painter
+    # ========
 
     def __del__(self):
         self.ui = None

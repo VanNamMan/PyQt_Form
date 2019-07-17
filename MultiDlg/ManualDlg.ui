@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ManualDlg</class>
+ <widget class="QDialog" name="ManualDlg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>820</width>
+    <height>520</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Manual</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: rgb(255, 170, 127);</string>
+  </property>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

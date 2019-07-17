@@ -14,7 +14,7 @@ class Ui_TeachDlg(object):
         TeachDlg.resize(820, 520)
         TeachDlg.setStyleSheet("")
         self.widget = QtWidgets.QWidget(TeachDlg)
-        self.widget.setGeometry(QtCore.QRect(10, 10, 481, 491))
+        self.widget.setGeometry(QtCore.QRect(40, 10, 451, 491))
         self.widget.setStyleSheet("QWidget{\n"
 "    border-style: solid;\n"
 "    border-width: 2px;\n"

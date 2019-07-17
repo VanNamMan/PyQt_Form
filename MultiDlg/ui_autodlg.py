@@ -61,6 +61,9 @@ class Ui_AutoDlg(object):
 "    border-color: beige;\n"
 "    font: bold 14px;\n"
 "    padding: 6px;\n"
+"}\n"
+"QPushButton:pressed{\n"
+"    background-color: rgb(255,255,0);\n"
 "}")
         self.but_Reset.setObjectName("but_Reset")
         self.but_Stop = QtWidgets.QPushButton(self.groupBox_2)
@@ -79,6 +82,9 @@ class Ui_AutoDlg(object):
 "    border-color: beige;\n"
 "    font: bold 14px;\n"
 "    padding: 6px;\n"
+"}\n"
+"QPushButton:pressed{\n"
+"    background-color: rgb(255,0,0);\n"
 "}")
         self.but_Stop.setObjectName("but_Stop")
         self.but_Start = QtWidgets.QPushButton(self.groupBox_2)
@@ -97,7 +103,11 @@ class Ui_AutoDlg(object):
 "    border-color: beige;\n"
 "    font: bold 14px;\n"
 "    padding: 6px;\n"
-"}")
+"}\n"
+"QPushButton:pressed{\n"
+"    background-color: rgb(0,255,0);\n"
+"}\n"
+"")
         self.but_Start.setObjectName("but_Start")
         self.listWidget = QtWidgets.QListWidget(self.groupBox_2)
         self.listWidget.setGeometry(QtCore.QRect(10, 10, 331, 171))

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QMessageBox, QWidget, QApplication,QMenu,QAction,QFileDialog
+from PyQt5.QtWidgets import QMainWindow,QDialog, QMessageBox,QWidget, QApplication,QMenu,QAction,QFileDialog,QToolBar
 from PyQt5.QtCore import Qt, QObject, QSize, QRect,QPoint
 import PyQt5.QtCore as QtCore
 from PyQt5.QtGui import QResizeEvent,QImage,QPixmap,QCloseEvent,QIcon
@@ -16,7 +16,7 @@ from PIL import ImageQt
 import sfile
 import vision as vs
 
-class HelloWorld(QDialog):
+class HelloWorld(QMainWindow):
     def __init__(self):
         super(HelloWorld, self).__init__(None)
         self.setWindowFlags(Qt.Window)
@@ -32,7 +32,7 @@ class HelloWorld(QDialog):
         self.ui.mdiArea.addSubWindow(self.m_teach, Qt.FramelessWindowHint)
         self.ui.mdiArea.addSubWindow(self.m_data, Qt.FramelessWindowHint)
 
-        self.showMaximized()
+        self.show()
         self.m_auto.showMaximized()
         #self.m_manual.setEnabled(False)
 
@@ -104,16 +104,17 @@ class HelloWorld(QDialog):
     def selectMenu(self,point):
         menu = QMenu(self.m_teach)
 
-        tools = menu.addMenu("&Add...")
+        tools = menu.addMenu("Add...")
         addRect = QAction("Rect", self)
         
         tools.addAction(addRect)
 
-
-        tools = menu.addMenu("&Function...")
+        tools = menu.addMenu("Function...")
         # addOCR = QAction("OCR",self)
         addBarcode = QAction("Barcode",self)
         tools.addAction(addBarcode)
+
+        clearAll = menu.addAction("Clear All")
 
         toolsPSM = tools.addMenu("&OCR")
         addOCR = []
@@ -130,7 +131,11 @@ class HelloWorld(QDialog):
 
         action = menu.exec_(self.mapToParent(parent_point))
 
-        if action in addOCR:
+        if action == addRect:
+            pass
+        elif action == clearAll:
+            self.m_teach.drawing = False
+        elif action in addOCR:
             index = addOCR.index(action)
             psm = index%num_psm
             oem = index//num_psm
@@ -241,20 +246,12 @@ class HelloWorld(QDialog):
     def UpdateUI(self):
         if self.sender() == self.ui.but_Auto:
             self.m_auto.showMaximized()
-            return
-
         elif self.sender() == self.ui.but_Manual:
             self.m_manual.showMaximized()
-            return
-
         elif self.sender() == self.ui.but_Teach:
             self.m_teach.showMaximized()
-            return
-
         elif self.sender() == self.ui.but_Data:
             self.m_data.showMaximized()
-            return
-        
     def closeEvent(self,QCloseEvent):
         pass
     def __del__(self):

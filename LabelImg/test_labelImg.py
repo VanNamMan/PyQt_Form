@@ -3,138 +3,112 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from libs.canvas import *
+from libs.utils import *
+from libs.toolBar import ToolBar
+from libs.labelDialog import *
 from libs.zoomWidget import ZoomWidget
 
-BB = QDialogButtonBox
+import os,time
 
-class LabelDialog(QDialog):
+__appname__ = "CopyRight2019 label master."
 
-    def __init__(self, text="Enter object label", parent=None, listItem=None):
-        super(LabelDialog, self).__init__(parent)
-        layout = QVBoxLayout()
+class WindowMixin(object):
 
-        self.edit = QLineEdit()
-        self.edit.setText(text)
-        layout.addWidget(self.edit)
-
-        if listItem is not None and len(listItem) > 0:
-            self.listWidget = QListWidget(self)
-            for item in listItem:
-                self.listWidget.addItem(item)
-            self.listWidget.itemClicked.connect(self.listItemClick)
-            self.listWidget.itemDoubleClicked.connect(self.listItemDoubleClick)
-            layout.addWidget(self.listWidget)
-
-        self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
-        bb.button(BB.Ok).setIcon(QIcon('res/edit.ico'))
-        bb.button(BB.Cancel).setIcon(QIcon('res/Bird.ico'))
-        bb.accepted.connect(self.validate)
-        bb.rejected.connect(self.reject)
-        layout.addWidget(bb)
-        
-        self.setLayout(layout)
-
-    def validate(self):
-        try:
-            if self.edit.text().trimmed():
-                self.accept()
-        except AttributeError:
-            # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
-            if self.edit.text().strip():
-                self.accept()
-    def listItemClick(self, tQListWidgetItem):
-        try:
-            text = tQListWidgetItem.text().trimmed()
-        except AttributeError:
-            # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
-            text = tQListWidgetItem.text().strip()
-        self.edit.setText(text)
-
-    def listItemDoubleClick(self, tQListWidgetItem):
-        self.listItemClick(tQListWidgetItem)
-        self.validate()
-    def popUp(self, text='', move=True):
-        self.edit.setText(text)
-        self.edit.setSelection(0, len(text))
-        self.edit.setFocus(Qt.PopupFocusReason)
-        if move:
-            self.move(QCursor.pos())
-        return self.edit.text() if self.exec_() else None
-
-class AllGreen(QMainWindow):
+    def menu(self, title, actions=None):
+        menu = self.menuBar().addMenu(title)
+        if actions:
+            addActions(menu, actions)
+        return menu
+    def toolbar(self, title, actions=None):
+        toolbar = ToolBar(title)
+        toolbar.setObjectName(u'%sToolBar' % title)
+        # toolbar.setOrientation(Qt.Vertical)
+        toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        if actions:
+            addActions(toolbar, actions)
+        self.addToolBar(Qt.LeftToolBarArea, toolbar)
+        return toolbar
+class labelMaster(QMainWindow,WindowMixin):
      FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
      def __init__(self):
          QWidget.__init__(self)
-         self.setFixedSize(800, 700)
-
+         self.setFixedSize(800, 600)
+         self.labelCoordinates = QLabel('')
+         self.statusBar().addPermanentWidget(self.labelCoordinates)
+         
          self.dirty = False
          self.filePath = ""
-         self.labelDialog = LabelDialog(listItem=["Add Rect","OCR","Barcode"])
+         self.prevLabel = "Enter object label"
+         self.labelDialog = LabelDialog(listItem=["Add Rect","OCR","Barcode","Crop"])
+         self.statusBar().showMessage('%s started.' % __appname__)
+         # self.statusBar().show()
+         #============ menu=========
+         self.menus = struct(
+            file=self.menu('&File'),
+            edit=self.menu('&Edit'),
+            view=self.menu('&View'),
+            help=self.menu('&Help'))
 
+         #=======toolBar==========
+         actions = [newAction(self,"Open",slot=self.open,icon="res/open-file-icon.png")
+         			,newAction(self,"Save",slot=self.save,icon="res/ooo-draw-icon.png")
+         			,newAction(self,"Create Rect",slot=self.createRect,icon="res/Save-as-icon.png")]
+         self.toolbar("Tools",actions=actions)
+         addActions(self.menus.file,actions)
 
-         layout = QVBoxLayout(self)
-
-         # ==============================
-         self.canvas = Canvas(self)
-         self.canvas.setFixedSize(640, 480)
-
-         
+         #================
          self.zoomWidget = ZoomWidget()
+
+         self.zoomMode = self.MANUAL_ZOOM
          self.scalers = {
             self.FIT_WINDOW: self.scaleFitWindow,
             self.FIT_WIDTH: self.scaleFitWidth,
             # Set to one to scale to 100% when loading files.
             self.MANUAL_ZOOM: lambda: 1,
-        }
+         }
 
+         layout = QVBoxLayout(self)
+
+         # ==============================
+         self.canvas = Canvas(self)
+         self.canvas.setStyleSheet("QWidget{border: 3px solid red;}")
+         
+         qImage = QImage("res/Bird.ico")
+         self.canvas.loadPixmap(QPixmap.fromImage(qImage))
+        
          scroll = QScrollArea()
          scroll.setWidget(self.canvas)
          scroll.setWidgetResizable(True)
+         self.scrollBars = {
+            Qt.Vertical: scroll.verticalScrollBar(),
+            Qt.Horizontal: scroll.horizontalScrollBar()
+         }
          self.scrollArea = scroll
-         self.canvas.scrollRequest.connect(self.scrollRequest)
+         # self.canvas.scrollRequest.connect(self.scrollRequest)
 
          self.canvas.newShape.connect(self.newShape)
-         self.canvas.shapeMoved.connect(self.setDirty)
+         # self.canvas.shapeMoved.connect(self.setDirty)
          # self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
          # self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
 
          self.setCentralWidget(scroll)
-
-         self.labelCoordinates = QLabel('')
-         self.statusBar().addPermanentWidget(self.labelCoordinates)
-
-  
-         
-
-         qImage = QImage("res/image.jpg")
-         self.canvas.loadPixmap(QPixmap.fromImage(qImage))
-        
-         self.canvas.setEnabled(True)
-         self.adjustScale(initial=True)
-         self.paintCanvas()
-         self.canvas.setFocus(True)
-
+ 		
+         # self.canvas.setEnabled(True)
+         # self.adjustScale(initial=True)
+         # self.paintCanvas()
+         # self.canvas.setFocus(True)
+         # set mode drawing rect
+         self.fitState()
          self.setCreateMode()
-
+         #=============
          layout.addWidget(self.canvas)
-
-         button = QPushButton('Create Rect', self)
-         button.move(10,500)
-         button.clicked.connect(self.createRect)
-         layout.addWidget(button)
-
-         button = QPushButton('Save', self)
-         button.setToolTip('Save Setting')
-         button.move(120,500)
-         button.clicked.connect(self.save)
-
-         layout.addWidget(button)
+        
          self.setLayout(layout)
          # ==============================
 
          palette = self.palette()
          role = self.backgroundRole()
-         palette.setColor(role, QColor('black'))
+         palette.setColor(role, QColor(232, 232, 232, 255))
          self.setPalette(palette)
 
          palette = self.canvas.palette()
@@ -142,28 +116,49 @@ class AllGreen(QMainWindow):
          palette.setColor(role, QColor(232, 232, 232, 255))
          self.canvas.setPalette(palette)
 
-
-     # def toggleDrawingSensitive(self, drawing=True):
-     #    """In the middle of drawing, toggling between modes should be disabled."""
-     #    # self.actions.editMode.setEnabled(not drawing)
-     #    if not drawing and self.beginner():
-     #        # Cancel creation.
-     #        print('Cancel creation.')
-     #        self.canvas.setEditing(True)
-     #        self.canvas.restoreCursor()
-     #        self.actions.create.setEnabled(True)
      def createRect(self):
      	self.canvas.setEditing(False)
+     def open(self):
+     	filters = "All File(*.*);;JPG iamge (*.jpg)"
+     	self.filePath,_ = QFileDialog.getOpenFileName(self,'Select File',"", filters)
+     	if self.filePath != "" and os.path.exists(self.filePath):
+
+     		self.resetState()
+     		self.canvas.setEnabled(False)
+     		self.canvas.verified = False
+
+     		imageData = self.read(self.filePath, None)
+     		qImage = QImage.fromData(imageData)
+     		self.canvas.loadPixmap(QPixmap.fromImage(qImage))
+
+     		self.canvas.setEnabled(True)
+     		self.adjustScale(initial=True)
+     		self.paintCanvas()
+     		self.canvas.setFocus(True)
+
+     	pass
      def save(self):
-     	[print(shape.points) for shape in self.canvas.shapes]
+     	[print(self.formatShape(shape)) for shape in self.canvas.shapes]
      def setDirty(self):
         self.dirty = True
         # self.actions.save.setEnabled(True)
+     def formatShape(self,shape):
+     		points = shape.points
+     		tl = points[0].toPoint()
+     		br = points[2].toPoint()
+     		label = shape.label
+     		cvRect = QRect(tl,br)
+     		return [cvRect,label]
      def newShape(self):
         #Pop-up and give focus to the label editor.             
-        text = self.labelDialog.popUp()
+        text = self.labelDialog.popUp(text = self.prevLabel)
         if text :
+        	generate_color = generateColorByText(text)
+        	shape = self.canvas.setLastLabel(text, generate_color, generate_color)
+        	self.prevLabel = text
         	self.canvas.setEditing(True)
+        	if text == "Crop":
+        		print(self.formatShape(shape))
         	
         else:
         	self.canvas.resetAllLines() # redraw rect
@@ -174,8 +169,6 @@ class AllGreen(QMainWindow):
         bar.setValue(bar.value() + bar.singleStep() * units)
      def setCreateMode(self):
      	 self.canvas.setEditing(False)
-         # self.actions.createMode.setEnabled(edit)
-         # self.actions.editMode.setEnabled(not edit)
      def paintCanvas(self):
          # assert not self.image.isNull(), "cannot paint null image"
          self.canvas.scale = 0.01 * self.zoomWidget.value()
@@ -199,19 +192,33 @@ class AllGreen(QMainWindow):
         # The epsilon does not seem to work too well here.
         w = self.centralWidget().width() - 2.0
         return w / self.canvas.pixmap.width()
-
+     def resetState(self):
+        # self.filePath = None
+        self.canvas.resetState()
+        self.labelCoordinates.clear()
+        
+     def fitState(self):
+     	self.canvas.setEnabled(True)
+     	self.adjustScale(initial=True)
+     	self.paintCanvas()
+     	self.canvas.setFocus(True)
+        
+     def read(self,filename,default=None):
+     	try:
+     		with open(filename,"rb") as f:
+     			return f.read()
+     	except:
+     		return default
+     def resizeEvent(self, event):
+        if self.canvas and self.zoomMode != self.MANUAL_ZOOM:
+            self.adjustScale()
+        super(labelMaster, self).resizeEvent(event)
 
 def main():
      import sys
      a = QApplication(sys.argv)
-     # QObject.connect(a,SIGNAL("lastWindowClosed()"),a,SLOT("quit()"))
-
-     w = AllGreen()
-     # w.canvas.setAutoFillBackground(True)
-     # w.w2.setAutoFillBackground(True)
-     # w.w3.setAutoFillBackground(True)
+     w = labelMaster()
      w.show()
-
      a.exec_()
 
 if __name__ == "__main__":

@@ -14,7 +14,8 @@ except ImportError:
 
 
 def newIcon(icon):
-    return QIcon(':/' + icon)
+    # return QIcon(':/' + icon)
+    return QIcon(icon)
 
 
 def newButton(text, icon=None, slot=None):

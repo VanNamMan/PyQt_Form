@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 
 from libs.canvas import *
 from libs.utils import *
+from libs.hashableQListWidgetItem import *
 from libs.toolBar import ToolBar
 from libs.labelDialog import *
 from libs.zoomWidget import ZoomWidget
@@ -32,7 +33,7 @@ class labelMaster(QMainWindow,WindowMixin):
      FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
      def __init__(self):
          QWidget.__init__(self)
-         self.setFixedSize(800, 600)
+         # self.setFixedSize(800, 600)
          self.labelCoordinates = QLabel('')
          self.statusBar().addPermanentWidget(self.labelCoordinates)
          
@@ -40,7 +41,7 @@ class labelMaster(QMainWindow,WindowMixin):
          self.filePath = ""
          self.prevLabel = "Enter object label"
          self.labelDialog = LabelDialog(listItem=["Add Rect","OCR","Barcode","Crop"])
-         self.statusBar().showMessage('%s started.' % __appname__)
+         self.statusBar().showMessage('%s' % __appname__)
          # self.statusBar().show()
          #============ menu=========
          self.menus = struct(
@@ -50,11 +51,12 @@ class labelMaster(QMainWindow,WindowMixin):
             help=self.menu('&Help'))
 
          #=======toolBar==========
-         actions = [newAction(self,"Open",slot=self.open,icon="res/open-file-icon.png")
-         			,newAction(self,"Save",slot=self.save,icon="res/ooo-draw-icon.png")
-         			,newAction(self,"Create Rect",slot=self.createRect,icon="res/Save-as-icon.png")]
+         actions = [newAction(self,"Open",shortcut="Ctrl+o",slot=self.open,icon="res/open-file-icon.png")
+         			,newAction(self,"createRect",shortcut="w",slot=self.createRect,icon="res/ooo-draw-icon.png")
+         			,newAction(self,"Save",shortcut="Ctrl+s",slot=self.save,icon="res/Save-as-icon.png")]
          self.toolbar("Tools",actions=actions)
          addActions(self.menus.file,actions)
+         
 
          #================
          self.zoomWidget = ZoomWidget()
@@ -66,18 +68,85 @@ class labelMaster(QMainWindow,WindowMixin):
             # Set to one to scale to 100% when loading files.
             self.MANUAL_ZOOM: lambda: 1,
          }
+         listLayout = QVBoxLayout()
+         listLayout.setContentsMargins(0, 0, 0, 0)
 
-         layout = QVBoxLayout(self)
+        # Create a widget for using default label
+         self.useDefaultLabelCheckbox = QCheckBox('useDefaultLabel')
+         self.useDefaultLabelCheckbox.setChecked(False)
+         self.defaultLabelTextLine = QLineEdit()
+         useDefaultLabelQHBoxLayout = QHBoxLayout()
+         useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
+         useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+         useDefaultLabelContainer = QWidget()
+         useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
+
+        # Create a widget for edit and diffc button
+         # self.diffcButton = QCheckBox('useDifficult')
+         # self.diffcButton.setChecked(False)
+         # self.diffcButton.stateChanged.connect(self.btnstate)
+         self.editButton = QToolButton()
+         self.editButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+
+        # Add some of widgets to listLayout
+         listLayout.addWidget(self.editButton)
+         # listLayout.addWidget(self.diffcButton)
+         listLayout.addWidget(useDefaultLabelContainer)
+
+        # Create and add a widget for showing current label items
+         self.labelList = QListWidget()
+         labelListContainer = QWidget()
+         labelListContainer.setLayout(listLayout)
+         # self.labelList.itemActivated.connect(self.labelSelectionChanged)
+         # self.labelList.itemSelectionChanged.connect(self.labelSelectionChanged)
+         # self.labelList.itemDoubleClicked.connect(self.editLabel)
+        # Connect to itemChanged to detect checkbox changes.
+         # self.labelList.itemChanged.connect(self.labelItemChanged)
+         listLayout.addWidget(self.labelList)
+
+         self.fileListWidget = QListWidget()
+         # self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)
+         filelistLayout = QVBoxLayout()
+         filelistLayout.setContentsMargins(0, 0, 0, 0)
+         filelistLayout.addWidget(self.fileListWidget)
+         fileListContainer = QWidget()
+         fileListContainer.setLayout(filelistLayout)
+         self.filedock = QDockWidget('fileList', self)
+         self.filedock.setObjectName('files')
+         self.filedock.setWidget(fileListContainer)
+
+         self.dock = QDockWidget('boxLabelText', self)
+         self.dock.setObjectName('labels')
+         self.dock.setWidget(labelListContainer)
+         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
+         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
+         self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
+         self.addDockWidget(Qt.RightDockWidgetArea, self.filedock)
+         self.filedock.setFeatures(QDockWidget.DockWidgetFloatable)
+
+
+         # layout = QVBoxLayout(self)
+          
 
          # ==============================
          self.canvas = Canvas(self)
-         self.canvas.setStyleSheet("QWidget{border: 3px solid red;}")
-         
+
+
+         # contextMenu
+         actions = [newAction(self,"Edit",slot=self.edit,icon="res/edit.ico")
+                    ,newAction(self,"Delete",slot=self.delete,icon="res/Close-2-icon.png")]
+         addActions(self.canvas.menus[0],actions)
+
+         #=================
+             
          qImage = QImage("res/Bird.ico")
          self.canvas.loadPixmap(QPixmap.fromImage(qImage))
+
+         # self.listWidget = QListWidget(self)
         
          scroll = QScrollArea()
          scroll.setWidget(self.canvas)
+         # scroll.setWidget(self.listWidget)
          scroll.setWidgetResizable(True)
          self.scrollBars = {
             Qt.Vertical: scroll.verticalScrollBar(),
@@ -92,18 +161,18 @@ class labelMaster(QMainWindow,WindowMixin):
          # self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
 
          self.setCentralWidget(scroll)
- 		
-         # self.canvas.setEnabled(True)
-         # self.adjustScale(initial=True)
-         # self.paintCanvas()
-         # self.canvas.setFocus(True)
-         # set mode drawing rect
+
          self.fitState()
-         self.setCreateMode()
+##         self.setCreateMode()
+         # layout.addWidget(scroll)
+
          #=============
-         layout.addWidget(self.canvas)
+
+         
+         # layout.addWidget(self.listWidget)
+
         
-         self.setLayout(layout)
+         # self.setLayout(listLayout)
          # ==============================
 
          palette = self.palette()
@@ -118,18 +187,29 @@ class labelMaster(QMainWindow,WindowMixin):
 
      def createRect(self):
      	self.canvas.setEditing(False)
+     def delete(self):
+        self.canvas.deleteSelected()
+        pass
+     def edit(self):
+        # shape = self.canvas.hShape
+        print(self.formatShape(self.canvas.selectedShape))
+        text = self.labelDialog.popUp(text = self.canvas.selectedShape.label)
+        if text :
+            self.canvas.selectedShape.label = text
+            self.prevLabel = text
+            self.canvas.setEditing(True)
+        pass
      def open(self):
      	filters = "All File(*.*);;JPG iamge (*.jpg)"
      	self.filePath,_ = QFileDialog.getOpenFileName(self,'Select File',"", filters)
      	if self.filePath != "" and os.path.exists(self.filePath):
 
-     		self.resetState()
-     		self.canvas.setEnabled(False)
-     		self.canvas.verified = False
+     		# self.resetState()
+     		# 
 
-     		imageData = self.read(self.filePath, None)
-     		qImage = QImage.fromData(imageData)
-     		self.canvas.loadPixmap(QPixmap.fromImage(qImage))
+     		# imageData = self.read(self.filePath, None)
+     		# qImage = QImage.fromData(imageData)
+     		self.canvas.loadPixmap(QPixmap.fromImage(QImage(self.filePath)))
 
      		self.canvas.setEnabled(True)
      		self.adjustScale(initial=True)
@@ -153,16 +233,19 @@ class labelMaster(QMainWindow,WindowMixin):
         #Pop-up and give focus to the label editor.             
         text = self.labelDialog.popUp(text = self.prevLabel)
         if text :
-        	generate_color = generateColorByText(text)
-        	shape = self.canvas.setLastLabel(text, generate_color, generate_color)
-        	self.prevLabel = text
-        	self.canvas.setEditing(True)
-        	if text == "Crop":
-        		print(self.formatShape(shape))
-        	
+            generate_color = generateColorByText(text)
+            shape = self.canvas.setLastLabel(text, generate_color, generate_color)
+            self.prevLabel = text
+            self.canvas.setEditing(True)
+            self.insertLabel(shape)
         else:
-        	self.canvas.resetAllLines() # redraw rect
-        pass
+        	   self.canvas.resetAllLines() # redraw rect
+     def insertLabel(self,shape):
+         item = HashableQListWidgetItem(shape.label)
+         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+         item.setCheckState(Qt.Checked)
+         item.setBackground(generateColorByText(shape.label))
+         self.labelList.addItem(item)
      def scrollRequest(self, delta, orientation):
         units = - delta / (8 * 15)
         bar = self.scrollBars[orientation]
@@ -196,6 +279,8 @@ class labelMaster(QMainWindow,WindowMixin):
         # self.filePath = None
         self.canvas.resetState()
         self.labelCoordinates.clear()
+        self.canvas.setEnabled(False)
+        self.canvas.verified = False
         
      def fitState(self):
      	self.canvas.setEnabled(True)

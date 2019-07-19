@@ -56,8 +56,6 @@ class HelloWorld(QMainWindow):
         self.OninitDialog()
 
         
-##        self.m_teach.ui.pic_frame.installEventFilter(self)
- 
     def OninitDialog(self):
         pass
     def openFileNameDialog(self):    
@@ -71,9 +69,10 @@ class HelloWorld(QMainWindow):
     def openFolderNameDialog(self,sDir="D:\\"):    
         folder = str(QFileDialog.getExistingDirectory(self, "Select Directory",sDir))
         return folder
+    # 
     def getStrDateTime(self):
         return time.strftime("%d%m%y_%H%M%S")
-
+    
     def valuechange(self):
         pass
 
@@ -114,7 +113,9 @@ class HelloWorld(QMainWindow):
         addBarcode = QAction("Barcode",self)
         tools.addAction(addBarcode)
 
+        save = menu.addAction("Save")
         clearAll = menu.addAction("Clear All")
+
 
         toolsPSM = tools.addMenu("&OCR")
         addOCR = []
@@ -132,6 +133,14 @@ class HelloWorld(QMainWindow):
         action = menu.exec_(self.mapToParent(parent_point))
 
         if action == addRect:
+            if self.m_teach.globalRectCrop:
+                self.m_teach.listGlobalRectCrop.append(self.m_teach.globalRectCrop)
+                self.m_teach.listCvRectCrop.append(self.m_teach.cvRectCrop)
+                self.m_teach.globalRectCrop = None
+            pass
+        elif action == save:
+            filename = "data/"+self.getStrDateTime()+".jpg"
+            self.m_teach.qImage.copy(self.m_teach.cvRectCrop).save(filename)
             pass
         elif action == clearAll:
             self.m_teach.drawing = False
@@ -195,7 +204,7 @@ class HelloWorld(QMainWindow):
         elif self.sender() == self.m_auto.ui.but_Reset:    
             self.onClickButReset()
             pass
-        
+    # log , showImage 
     def log(self,idlog,text):
         strtime = time.strftime("%H:%M:%S : ")
         text = strtime+str(text)
@@ -215,7 +224,7 @@ class HelloWorld(QMainWindow):
             qPix = QPixmap(qImg)
             
         frame.setPixmap(qPix)
-
+    # Resize , update UI
     bFirst = True
     baseRectElement = []
     widgets = []
@@ -242,7 +251,6 @@ class HelloWorld(QMainWindow):
             widget.updateGeometry()
         return
 
-
     def UpdateUI(self):
         if self.sender() == self.ui.but_Auto:
             self.m_auto.showMaximized()
@@ -252,6 +260,7 @@ class HelloWorld(QMainWindow):
             self.m_teach.showMaximized()
         elif self.sender() == self.ui.but_Data:
             self.m_data.showMaximized()
+    # 
     def closeEvent(self,QCloseEvent):
         pass
     def __del__(self):

@@ -1,0 +1,82 @@
+# my Colors
+RED1 = "#8B0016"
+RED2 = "#B2001F"
+RED3 = "#C50023"
+RED4 = "#DF0029"
+RED5 = "#E54646"
+
+BLUE1 = "#103667"
+BLUE2 = "#184785"
+BLUE3 = "#1B4F93"
+BLUE4 = "#205AA7"
+BLUE5 = "#426EB4"
+
+GREEN1 = "#367517"
+GREEN2 = "#489620"
+GREEN3 = "#50A625"
+GREEN4 = "#5BBD2B"
+GREEN5 = "#83C75D"
+
+YELLOW1 = "#9C9900"
+YELLOW2 = "#C7C300"
+YELLOW3 = "#DCD800"
+YELLOW4 = "#F9F400"
+YELLOW5 = "#FCF54C"
+
+BROWN1 = "#945305"
+BROWN2 = "#BD6B09"
+BROWN3 = "#D0770B"
+BROWN4 = "#EC870E"
+BROWN5 = "#F09C42"
+
+LIGHT_BLUE1 = "#008489"
+LIGHT_BLUE2 = "#009298"
+LIGHT_BLUE3 = "#00A6AD"
+LIGHT_BLUE4 = "#00B2BF"
+LIGHT_BLUE5 = "#6EC3C9"
+
+CYAN1 = "#006241"
+CYAN2 = "#007F54"
+CYAN3 = "#008C5E"
+CYAN4 = "#00A06B"
+CYAN5 = "#00AE72"
+
+GRAY1 = "#363636"
+GRAY2 = "#555555"
+GRAY3 = "#707070"
+GRAY4 = "#898989"
+GRAY5 = "#A0A0A0"
+
+BLACK = "#000000"
+WHITE = "#EEEEEE"
+RED = "#FF0000"
+GREEN = "#00FF00"
+BLUE = "#0000FF"
+ORANGE = "#FF6600"
+
+# menubar
+OPEN = "Open"
+DINO = "Dino"
+BASLER = "Basler"
+PARA = "Parameter"
+TEXT = "Text"
+LW = "Line Width"
+FS = "Font Scale"
+
+# button
+START = "Start"
+STOP = "Stop"
+RESET = "Reset"
+LOG = "Log"
+
+# toolbar
+RECT = "Rect"
+MOVIE = "Movie"
+RELOAD = "Reload"
+
+# popup menu
+ADD = "Add"
+DELETE = "Delete"
+CLEAR_ALL = "Clear All"
+
+

@@ -63,6 +63,13 @@ class Canvas(QWidget):
         self.verified = False
         self.drawSquare = False
 
+        #===byMe==========
+        self.text = None
+        self.locText = None
+        self.fontText = QFont("Arial",20)
+        self.drawingTextColor = QColor(0,0,0)
+        #===byMe==========
+
     def setDrawingColor(self, qColor):
         self.drawingLineColor = qColor
         self.drawingRectColor = qColor
@@ -456,6 +463,17 @@ class Canvas(QWidget):
         if self.selectedShapeCopy:
             self.selectedShapeCopy.paint(p)
 
+        #===byMe==========
+        #paint text
+        if self.text and self.locText:
+            p.setPen(self.drawingTextColor)
+            p.setFont(self.fontText)
+            if isinstance(self.locText,QPoint):
+                p.drawText(self.locText,self.text)
+            else:
+                p.drawText(self.locText,Qt.AlignLeft,self.text)
+
+        #===byMe==========
         # Paint rect
         if self.current is not None and len(self.line) == 2:
             leftTop = self.line[0]
@@ -687,7 +705,7 @@ class Canvas(QWidget):
 
     def loadPixmap(self, pixmap):
         self.pixmap = pixmap
-        self.shapes = []
+        # self.shapes = []
         self.repaint()
 
     def loadShapes(self, shapes):

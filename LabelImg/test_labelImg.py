@@ -4,15 +4,19 @@ from PyQt5.QtWidgets import *
 
 from libs.canvas import *
 from libs.utils import *
+from libs.constants import *
+from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
 from libs.hashableQListWidgetItem import *
 from libs.toolBar import ToolBar
-from libs.labelDialog import *
+from libs.labelDialog import LabelDialog
+from libs.colorDialog import ColorDialog
 from libs.zoomWidget import ZoomWidget
 
 from libs.cvLib import *
 from UI_Convert.paramsCv import paramsCv
+from UI_Convert.cameraDlg import cameraDlg
 
-import os,time
+import os,time,threading
 from functools import partial
 
 
@@ -48,18 +52,31 @@ class labelMaster(QMainWindow,WindowMixin):
          self.qImage = None
          self.dirty = False
          self.saveFolder = None
-         self.filePath = ""
+         self.filePath = None
+         self.lastOpenDir = None
+         self.mImgList = []
          self.prevLabel = "Enter object label"
+         self.bLoopImplement = True
+         self.bAutoImplement = False
+         self.bSelectionChanged = False
+
          fileLabel = "label.txt"
          listLabel = []
          if os.path.exists(fileLabel):
              with open(fileLabel,"r") as inFile:
                 listLabel = inFile.readline().split(",")
+
          self.labelDialog = LabelDialog(listItem=listLabel)
+         self.colorDialog = ColorDialog(parent=self)
+         self.lineColor = None
+         self.barcodeColor = None
+
          self.itemsToShapes = {}
          self.shapesToItems = {}
          self._noSelectionSlot = False
          self._beginner = True
+
+
          self.statusBar().showMessage('%s' % __appname__)
          # self.statusBar().show()
          #============ menu=========
@@ -77,17 +94,29 @@ class labelMaster(QMainWindow,WindowMixin):
          #=======toolBar==========
          openFile = action("Open",self.open
             ,"Ctrl+o","res/open.png","Open image file")
+         openDir = action("Open Dir",self.openDirDialog
+            ,"Ctrl+Shift+o","res/openDir.png","Open image folder")
          createShape = action("Create rect box",self.createShape
             ,"r","res/draw.png","Start draw rectangle")
          saveFile = action("Save",self.save
             ,"Ctrl+s","res/save.png","Save parameters")
          editLabel = action("Edit label",self.editLabel
             ,"Ctrl+e","res/edit.png","Editting label", enabled=False)
-         deleteShape = action("Delete shape",self.delete
+         deleteShape = action("Delete shape",self.deleteSelectedShape
             ,"Ctrl+d","res/delete.png","Delete shape selected", enabled=False)
 
          implement = action("Implement",self.implement
-            ,"a","res/event.png","Implement function", enabled=False)
+            ,"a","res/event.png","Box line color", enabled=False)
+
+         lineColor = action("Line color",lambda:self.boxColor("line")
+            ,"Ctrl+c","res/lineColor.png","Box line color", enabled=True)
+         barcodeColor = action("Text color",lambda:self.boxColor("text")
+            ,"Ctrl+Shift+c","res/textColor.png","Box text color", enabled=True)
+
+         nextImage = action("Next Image",self.openNextImg
+            ,"Ctrl+n","res/next.png","Next image", enabled=True)
+         backImage = action("Back Image",self.openPrevImg
+            ,"Ctrl+b","res/back.png","Back image", enabled=True)
 
          zoomIn = action('zoomin', partial(self.addZoom, 10),
                         'Ctrl++', 'res/zoom-in.png','zoominDetail', enabled=False)
@@ -106,10 +135,13 @@ class labelMaster(QMainWindow,WindowMixin):
                           'Ctrl+Shift+d', 'res/clear-all.png','Clear all list items',
                           checkable=True, enabled=True)
 
-         actionMenuFile = [openFile,saveFile,createShape,implement,editLabel,deleteShape]
+         actionMenuFile = [openFile,openDir,saveFile]
          addActions(self.menus.file,actionMenuFile)
 
-         actionToolbar = (openFile,saveFile,createShape,editLabel,implement)
+         actionMenuEdit = [createShape,implement,editLabel,lineColor,barcodeColor,deleteShape]
+         addActions(self.menus.edit,actionMenuEdit)
+
+         actionToolbar = (openFile,openDir,saveFile,createShape,editLabel,implement,nextImage,backImage)
          self.toolbar("Tools",actions=actionToolbar)
 
          self.zoomWidget = ZoomWidget()
@@ -123,11 +155,13 @@ class labelMaster(QMainWindow,WindowMixin):
          
         # Group zoom controls into a list for easier toggling.
          beginner = (implement,editLabel,deleteShape)
-         self.actions = struct(openFile=openFile,saveFile=saveFile,createShape=createShape
+         self.actions = struct(openFile=openFile,openDir=openDir,saveFile=saveFile,createShape=createShape
                                 ,editLabel=editLabel,deleteShape=deleteShape
-                                ,implement=implement,zoomIn=zoomIn,zoomOut=zoomOut
+                                ,implement=implement,lineColor=lineColor,barcodeColor=barcodeColor
+                                ,nextImage=nextImage,backImage=backImage
+                                ,zoomIn=zoomIn,zoomOut=zoomOut
                                 ,zoomOrg=zoomOrg,fitWidth=fitWidth,fitWindow=fitWindow
-                                ,beginner=beginner)
+                                ,beginner=beginner,clearAll=clearAll)
 
          self.zoomWidget.valueChanged.connect(self.paintCanvas)
 
@@ -145,12 +179,17 @@ class labelMaster(QMainWindow,WindowMixin):
          self.useDefaultLabelCheckbox = QCheckBox('useDefaultLabel')
          self.useDefaultLabelCheckbox.setChecked(False)
          self.defaultLabelTextLine = QLineEdit()
+         self.autoImplement = QCheckBox('autoImplement')
+         self.autoImplement.setChecked(False)
+         self.autoImplement.stateChanged.connect(self.stateChanged)
          useDefaultLabelQHBoxLayout = QHBoxLayout()
          useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
          useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+         useDefaultLabelQHBoxLayout.addWidget(self.autoImplement)
+
          useDefaultLabelContainer = QWidget()
          useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
-
+         
         # Create a widget for edit and diffc buttonp
          self.editButton = QToolButton()
          self.editButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -165,8 +204,8 @@ class labelMaster(QMainWindow,WindowMixin):
 
 
         # Add some of widgets to listLayout
-         buttonLayout.addWidget(self.implementButton)
          buttonLayout.addWidget(self.editButton)
+         buttonLayout.addWidget(self.implementButton)
          listLayout.addLayout(buttonLayout)
 
          listLayout.addWidget(useDefaultLabelContainer)
@@ -192,7 +231,7 @@ class labelMaster(QMainWindow,WindowMixin):
          self.fileLogWidget.setContextMenuPolicy(Qt.CustomContextMenu)
          self.fileLogWidget.customContextMenuRequested.connect(
             self.popfileLogMenu)
-         # self.fileLogWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)
+         self.fileLogWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)
          # self.fileLogWidget.itemChanged.connect(self.fileLogRowChanged)
          fileLogLayout = QVBoxLayout()
          fileLogLayout.setContentsMargins(0, 0, 0, 0)
@@ -212,7 +251,13 @@ class labelMaster(QMainWindow,WindowMixin):
          self.parameterdock = QDockWidget('paramsVision', self)
          self.parameterdock.setObjectName('params')
          self.paramsCvWidget = paramsCv(self)
+         self.paramsCvWidget.ui.ln_kThresh.textChanged.connect(self.textChanged)
          self.parameterdock.setWidget(self.paramsCvWidget)
+
+         self.camerdock = QDockWidget('camera', self)
+         self.camerdock.setObjectName('cameara')
+         self.cameraDlg = cameraDlg(self)
+         self.camerdock.setWidget(self.cameraDlg)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
          self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
@@ -224,6 +269,9 @@ class labelMaster(QMainWindow,WindowMixin):
          self.addDockWidget(Qt.RightDockWidgetArea, self.parameterdock)
          self.parameterdock.setFeatures(QDockWidget.DockWidgetFloatable)
 
+         self.addDockWidget(Qt.RightDockWidgetArea, self.camerdock)
+         self.camerdock.setFeatures(QDockWidget.DockWidgetFloatable)
+
          # ==============Canvas================
          self.canvas = Canvas(self)
          # contextMenu
@@ -231,6 +279,9 @@ class labelMaster(QMainWindow,WindowMixin):
          #=================
          qImage = QImage(640,480,QImage.Format_RGBA8888)
          self.canvas.loadPixmap(QPixmap.fromImage(qImage))
+
+         self.canvas.text = "Hello\nLabel Master"
+         self.canvas.locText = QRect(50,50,400,100)
 
         
          scroll = QScrollArea()
@@ -266,6 +317,10 @@ class labelMaster(QMainWindow,WindowMixin):
          role = self.canvas.backgroundRole()
          palette.setColor(role, QColor(200, 232, 232, 255))
          self.canvas.setPalette(palette)
+
+         #==start thead implement
+         self.myThread(target=self.loopImplement,args=())
+         #==start thead OpenCam
      #======Functions==
      def getStrDateTime(self):
         return time.strftime("%y%m%d_%H%M%S")
@@ -277,30 +332,63 @@ class labelMaster(QMainWindow,WindowMixin):
         if os.path.exists(self.saveFolder):
             if isinstance(image,np.ndarray):
                 filepath = os.path.join(self.saveFolder,self.getStrDateTime()+".jpg")
+                print(filepath)
                 cv2.imwrite(filepath,image)
 
      def logFile(self,obj):
         txt = time.strftime("%H:%M:%S ")+str(obj)
         self.fileLogWidget.addItem(txt)
 
-     def getOCR(self,cvImg,bLog=True):
-        txts = ""
-        data = get_text(cvImg)
+     def getOCR(self,cvImg,rect=None,bUpdate=True,bLog=True):
+        txt = get_text(cvImg)
+        lstText= txt.split("\n")
+        nchars = [len(a) for a in lstText]
+        n = max(nchars) + 1
+   
         if bLog:
-            for txt in data:
-                if txt != "":
-                    txts += "\t" + txt + "\n"
-            self.logFile(txts)
-        return data
+            self.logFile(txt)
+        elif bUpdate:
+            w,h = rect.width(),rect.height()
+            txt = "\t"+txt
+            self.canvas.text = txt
+            
+            # self.canvas.fontText = QFont("Arial",(1.5*w)//n)
+            self.canvas.fontText = QFont("Arial",20)
+            self.canvas.fontText.setItalic(True)
+            rect.setWidth(40*(n))
+            self.canvas.locText = rect.translated(QPoint(0,-h))
+            # self.canvas.fontText.setUnderline(True)
+            self.canvas.update()
 
-     def getBarCode(self,cvImg,bLog=True):
+        return txt
+
+     def getBarCode(self,cvImg,rect=None,bLog=True,bUpdate=True):
         codes = getBarcode(cvImg)
-        if bLog:
-            if codes:
-                for code,dtype in codes:
+        if codes:
+            for code,dtype in codes:
+                if bLog:
                     self.logFile("Code : %s , type : %s"%(code,dtype))
-            else:
-                self.logFile("Code : None")
+                if bUpdate:
+                    w,h = rect.width(),rect.height()
+                    txt = ""
+                    n = 1
+                    for code,dtype in codes:
+                        txt += "\t"+code+" , "+dtype+"\n"
+                        n = max(n,len(code))
+                    self.canvas.text = txt
+                    self.canvas.fontText = QFont("Arial",20)
+                    self.canvas.fontText.setItalic(True)
+                    rect.setWidth(40*(n))
+                    self.canvas.locText = rect
+                    self.canvas.update()
+        else:
+            if bLog:
+                self.logFile("Code : ")
+            if bUpdate:
+                self.canvas.text = ""
+                self.canvas.locText = rect
+                self.canvas.update()
+    
         return codes
 
      # actions 
@@ -321,46 +409,179 @@ class labelMaster(QMainWindow,WindowMixin):
             return
         item = self.shapesToItems[shape]
         self.labelList.takeItem(self.labelList.row(item))
+        self.canvas.text = None
+        self.canvas.locText = None
+        if self.labelList.count() == 0:
+            self.actions.implement.setEnabled(False)
+            self.actions.editLabel.setEnabled(False)
+            self.actions.deleteShape.setEnabled(False)
+
         del self.shapesToItems[shape]
         del self.itemsToShapes[item]
+        
 
-     def delete(self):
+     def boxColor(self,obj):
+        color = self.colorDialog.getColor(self.lineColor, u'Choose line color',
+                                          default=DEFAULT_LINE_COLOR)
+        # print(color,type(color))
+        if color :
+            if obj == LINE:
+                self.lineColor = color
+                Shape.line_color = color
+                self.canvas.setDrawingColor(color)
+            elif obj == TEXT:
+                self.barcodeColor = color
+                self.canvas.drawingTextColor = color
+
+            self.canvas.update()
+            self.setDirty()
+
+
+     def deleteSelectedShape(self):
         self.remLabel(self.canvas.deleteSelected())
      
      def implement(self):
+        if self.qImage is None:
+            return
         shape = self.canvas.selectedShape
-        rect,label = self.formatShape(shape)
-        roi = self.qImage.copy(rect)
-        cvRoi = qImageToCvMat(roi)
-        if label == "OCR":
-            self.getOCR(cvRoi)
-        elif label == "Barcode":
-            codes = self.getBarCode(cvRoi)
-        elif label == "Crop":
-            self.saveImage(cvRoi)
-        
+        # print(shape.points)
+        if shape:
+            rect,label = self.formatShape(shape)
+            roi = self.qImage.copy(rect)
+            cvRoi = qImageToCvMat(roi)
+            if label == OCR:
+                self.getOCR(cvRoi,rect,bLog=False)
+            elif label == BARCODE:
+                self.getBarCode(cvRoi,rect,bLog=False)
+            elif label == CROP:
+                self.saveImage(cvRoi)
+    
      def open(self):
         filters = "All File(*.*);;JPG iamge (*.jpg)"
         self.filePath,_ = QFileDialog.getOpenFileName(self,'Select File',"", filters)
-        _,extension = os.path.splitext(self.filePath)
-        if self.filePath != "" and extension in __imageFile__ and os.path.exists(self.filePath):
+        self.loadFile(self.filePath)
+        
 
+     def loadFile(self,filePath):
+        self.filePath = filePath
+        _,extension = os.path.splitext(filePath)
+        if filePath != "" and extension in __imageFile__ and os.path.exists(filePath):
+            self.setWindowTitle("Label Master "+filePath)
             self.resetState()
-            self.qImage = QImage(self.filePath)
+            self.qImage = QImage(filePath)
             # self.qImage = self.qImage.convertToFormat(QImage.Format_ARGB32)
-            self.logFile(self.qImage.format())
+            # self.logFile(getFormatQImage(self.qImage))
             # self.cvMat = cv2.imread(self.filePath)
             # if isinstance(self.cvMat,np.ndarray):
             # qImg = cVMatToQImage(self.cvMat[...,::-1])
             self.canvas.loadPixmap(QPixmap.fromImage(self.qImage))
 
             self.fitState()
+        pass
+
+     def openDirDialog(self, _value=False, dirpath=None):
+        # if not self.mayContinue():
+        #     return
+
+        defaultOpenDirPath = dirpath if dirpath else '.'
+        if self.lastOpenDir and os.path.exists(self.lastOpenDir):
+            defaultOpenDirPath = self.lastOpenDir
+        else:
+            defaultOpenDirPath = os.path.dirname(self.filePath) if self.filePath else '.'
+
+        targetDirPath = ustr(QFileDialog.getExistingDirectory(self,
+                                                     '%s - Open Directory' % __appname__, defaultOpenDirPath,
+                                                     QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks))
+        self.importDirImages(targetDirPath)
+
+     def importDirImages(self, dirpath):
+        if not dirpath:
+            return
+
+        self.lastOpenDir = dirpath
+        self.dirname = dirpath
+        self.filePath = None
+        self.fileLogWidget.clear()
+        self.mImgList = self.scanAllImages(dirpath)
+        self.openNextImg()
+        for imgPath in self.mImgList:
+            item = QListWidgetItem(imgPath)
+            self.fileLogWidget.addItem(item)
+
+     def scanAllImages(self, folderPath):
+        extensions = ['.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
+        images = []
+
+        for root, dirs, files in os.walk(folderPath):
+            for file in files:
+                if file.lower().endswith(tuple(extensions)):
+                    relativePath = os.path.join(root, file)
+                    path = ustr(os.path.abspath(relativePath))
+                    images.append(path)
+        natural_sort(images, key=lambda x: x.lower())
+        return images
+
+     def openNextImg(self, _value=False):
+        # Proceding prev image without dialog if having any label
+        # if self.autoSaving.isChecked():
+        # if self.defaultSaveDir is not None:
+        #     if self.dirty is True:
+        #         self.saveFile()
+        # else:
+        #     self.changeSavedirDialog()
+        #     return
+
+        # if not self.mayContinue():
+        #     return
+
+        if len(self.mImgList) <= 0:
+            return
+
+        filename = None
+        if self.filePath is None:
+            filename = self.mImgList[0]
+        else:
+            currIndex = self.mImgList.index(self.filePath)
+            print(currIndex)
+            if currIndex + 1 < len(self.mImgList):
+                filename = self.mImgList[currIndex + 1]
+
+        if filename:
+            self.loadFile(filename)
+
+     def openPrevImg(self, _value=False):
+        # Proceding prev image without dialog if having any label
+        # if self.autoSaving.isChecked():
+        #     if self.defaultSaveDir is not None:
+        #         if self.dirty is True:
+        #             self.saveFile()
+        #     else:
+        #         self.changeSavedirDialog()
+        #         return
+
+        # if not self.mayContinue():
+        #     return
+
+        if len(self.mImgList) <= 0:
+            return
+
+        if self.filePath is None:
+            return
+
+        currIndex = self.mImgList.index(self.filePath)
+        if currIndex - 1 >= 0:
+            filename = self.mImgList[currIndex - 1]
+            if filename:
+                self.loadFile(filename)
+
      def save(self):
         pass
 
      def setDirty(self):
         self.dirty = True
         # self.actions.createShape.setEnabled(False)
+        shape = self.canvas.selectedShape
+        # self.implement()
 
      def formatShape(self,shape):
             points = shape.points
@@ -370,8 +591,37 @@ class labelMaster(QMainWindow,WindowMixin):
             cvRect = QRect(tl,br)
             return [cvRect,label]
 
+     def myThread(self,target,args=()):
+        thread = threading.Thread(target=target,args=args)
+        thread.start()
+
+     def loopImplement(self):
+        while self.bLoopImplement:
+            if self.bSelectionChanged and self.bAutoImplement:
+                self.implement()
+            time.sleep(0.02)
+
      # redraw rect
+     # ======signal slot================
+     def textChanged(self,text):
+        self.canvas.text = text
+        self.canvas.update()
      # ================add and edit Label===========================
+     def stateChanged(self,iState):
+        if iState == 2:
+            self.bAutoImplement = True
+        elif iState == 0:
+            self.bAutoImplement = False
+            self.canvas.text =None
+            self.canvas.update()
+
+     def fileitemDoubleClicked(self, item=None):
+        currIndex = self.mImgList.index(ustr(item.text()))
+        if currIndex < len(self.mImgList):
+            filename = self.mImgList[currIndex]
+            if filename:
+                self.loadFile(filename)
+
      def beginner(self):
         return self._beginner
 
@@ -409,7 +659,7 @@ class labelMaster(QMainWindow,WindowMixin):
                 self.shapesToItems[shape].setSelected(True)
             else:
                 self.labelList.clearSelection()
-
+        self.bSelectionChanged = selected
         self.actions.implement.setEnabled(selected)
         self.actions.editLabel.setEnabled(selected)
         self.actions.deleteShape.setEnabled(selected)
@@ -424,6 +674,8 @@ class labelMaster(QMainWindow,WindowMixin):
             return
         text = self.labelDialog.popUp(item.text())
         if text is not None:
+            shape = self.itemsToShapes[item]
+            rect,label = self.formatShape(shape)
             item.setText(text)
             item.setBackground(generateColorByText(text))
             self.setDirty()
@@ -448,7 +700,8 @@ class labelMaster(QMainWindow,WindowMixin):
             self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
 
      def addLabel(self,shape):
-         item = HashableQListWidgetItem(shape.label)
+         rect,label = self.formatShape(shape)
+         item = HashableQListWidgetItem(label)
          item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
          item.setCheckState(Qt.Checked)
          item.setBackground(generateColorByText(shape.label))
@@ -589,7 +842,12 @@ class labelMaster(QMainWindow,WindowMixin):
         self.fileLogWidget.clear()
 
      def resetState(self):
-        self.labelList.clear()
+        # self.canvas.deleteSelected()
+        # self.labelList.clear()
+        # self.itemsToShapes.clear()
+        # self.shapesToItems.clear()
+        self.canvas.locText = None
+        self.canvas.text = None
         self.canvas.resetState()
         self.labelCoordinates.clear()
         self.canvas.setEnabled(False)
@@ -605,12 +863,16 @@ class labelMaster(QMainWindow,WindowMixin):
         if self.canvas and self.zoomMode != self.MANUAL_ZOOM:
             self.adjustScale()
         super(labelMaster, self).resizeEvent(event)
+     def closeEvent(self, event):
+        print("Close main")
+        self.bLoopImplement = False
+        self.cameraDlg.stopAllThread()
 
 def main():
      import sys
      a = QApplication(sys.argv)
      w = labelMaster()
-     w.show()
+     w.showMaximized()
      a.exec_()
 
 if __name__ == "__main__":

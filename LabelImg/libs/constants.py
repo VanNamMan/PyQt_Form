@@ -16,3 +16,12 @@ FORMAT_PASCALVOC='PascalVOC'
 FORMAT_YOLO='YOLO'
 SETTING_DRAW_SQUARE = 'draw/square'
 DEFAULT_ENCODING = 'utf-8'
+
+# byMe choose color for line,text
+TEXT = "text"
+LINE = "line"
+CROP = "Crop"
+BARCODE = "Barcode"
+OCR = "OCR"
+#=====
+

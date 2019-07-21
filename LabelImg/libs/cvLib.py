@@ -4,8 +4,31 @@ import pytesseract
 from pyzbar.pyzbar import decode
 from pylibdmtx.pylibdmtx import decode as D
 
-from PyQt5.QtGui import QImage,qRgb
+from PyQt5.QtGui import QImage,qRgb,QPixmap
 import qimage2ndarray
+
+def getFormatQImage(qImg):
+        iFormat = qImg.format()
+        if iFormat == 0 :
+            return "Format_Invalid"
+        elif iFormat == 1 :
+            return "Format_Mono"
+        elif iFormat == 2 :
+            return "Format_MonoLSB"
+        elif iFormat == 3 :
+            return "Format_Indexed8"
+        elif iFormat == 4 :
+            return "Format_RGB32"
+        elif iFormat == 5 :
+            return "Format_ARGB32"
+        elif iFormat == 6 :
+            return "Format_ARGB32_Premultiplied"
+        elif iFormat == 7 :
+            return "Format_RGB16"
+        elif iFormat == 8 :
+            return "Format_ARGB8565_Premultiplied"
+        else:
+        	return str(iFormat)
 
 
 def qImageToCvMat(qImg):
@@ -14,7 +37,7 @@ def qImageToCvMat(qImg):
     return arr
 def cVMatToQImage(cvMat):
 	if len(cvMat.shape) == 3:
-		return qimage2ndarray.array2qimage(cvMat)
+		return qimage2ndarray.array2qimage(cvMat[...,::-1])
 	else:
 		return qimage2ndarray.gray2qimage(cvMat)
 
@@ -45,11 +68,11 @@ def get_meanStd(img,rois=-1):
 # pytesseract.image_to_string(image, lang='chi_sim', config=tessdata_dir_config)
 
 def get_text(img,config = ('-l eng --oem 1 --psm 3')):
-    if len(img.shape) > 2:
-        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    else:
-        gray = img
-    return pytesseract.image_to_string(gray).split("\n")
+    # if len(img.shape) > 2:
+    #     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    # else:
+    #     gray = img
+    return pytesseract.image_to_string(img)
 # barcode
 def getMatrixCode(img):
 	try:

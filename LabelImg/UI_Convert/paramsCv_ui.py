@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_paramsCv(object):
     def setupUi(self, paramsCv):
         paramsCv.setObjectName("paramsCv")
-        paramsCv.resize(220, 523)
+        paramsCv.resize(532, 389)
         self.groupBox = QtWidgets.QGroupBox(paramsCv)
         self.groupBox.setGeometry(QtCore.QRect(20, 10, 181, 151))
         self.groupBox.setStyleSheet("QGroupBox{\n"
@@ -73,7 +73,7 @@ class Ui_paramsCv(object):
         self.label_8.setGeometry(QtCore.QRect(20, 50, 47, 20))
         self.label_8.setObjectName("label_8")
         self.groupBox_3 = QtWidgets.QGroupBox(paramsCv)
-        self.groupBox_3.setGeometry(QtCore.QRect(20, 350, 181, 151))
+        self.groupBox_3.setGeometry(QtCore.QRect(210, 10, 181, 151))
         self.groupBox_3.setStyleSheet("QGroupBox{\n"
 "    border-style: solid;\n"
 "    border-width: 2px;\n"

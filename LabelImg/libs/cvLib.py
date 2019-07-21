@@ -33,8 +33,12 @@ def getFormatQImage(qImg):
 
 def qImageToCvMat(qImg):
     '''  Converts a QImage into an opencv MAT format  '''
-    arr = qimage2ndarray.rgb_view(qImg.convertToFormat(QImage.Format_ARGB32))[...,::-1]
-    return arr
+    try:
+        arr = qimage2ndarray.rgb_view(qImg.convertToFormat(QImage.Format_ARGB32))[...,::-1]
+        return arr
+    except:
+        return None
+    
 def cVMatToQImage(cvMat):
 	if len(cvMat.shape) == 3:
 		return qimage2ndarray.array2qimage(cvMat[...,::-1])

@@ -18,6 +18,7 @@ from UI_Convert.cameraDlg import cameraDlg
 
 import os,time,threading
 from functools import partial
+from multiprocessing.dummy import Pool
 
 
 __appname__ = "CopyRight2019 label master."
@@ -59,6 +60,7 @@ class labelMaster(QMainWindow,WindowMixin):
          self.bLoopImplement = True
          self.bAutoImplement = False
          self.bSelectionChanged = False
+         self.pool = Pool(5)
 
          fileLabel = "label.txt"
          listLabel = []
@@ -69,7 +71,7 @@ class labelMaster(QMainWindow,WindowMixin):
          self.labelDialog = LabelDialog(listItem=listLabel)
          self.colorDialog = ColorDialog(parent=self)
          self.lineColor = None
-         self.barcodeColor = None
+         self.textColor = None
 
          self.itemsToShapes = {}
          self.shapesToItems = {}
@@ -93,52 +95,46 @@ class labelMaster(QMainWindow,WindowMixin):
 
          #=======toolBar==========
          openFile = action("Open",self.open
-            ,"Ctrl+o","res/open.png","Open image file")
+            ,OPENFILE,"res/open.png","Open image file")
          openDir = action("Open Dir",self.openDirDialog
-            ,"Ctrl+Shift+o","res/openDir.png","Open image folder")
+            ,OPENDIR,"res/openDir.png","Open image folder")
          createShape = action("Create rect box",self.createShape
-            ,"r","res/draw.png","Start draw rectangle")
+            ,CREATE,"res/draw.png","Start draw rectangle")
+         copy = action('copy', self.copySelectedShape
+            ,COPY,'res/copy.png','dupBoxDetail',enabled=False)
          saveFile = action("Save",self.save
-            ,"Ctrl+s","res/save.png","Save parameters")
+            ,SAVE,"res/save.png","Save parameters")
          editLabel = action("Edit label",self.editLabel
-            ,"Ctrl+e","res/edit.png","Editting label", enabled=False)
+            ,EDIT,"res/edit.png","Editting label", enabled=False)
          deleteShape = action("Delete shape",self.deleteSelectedShape
-            ,"Ctrl+d","res/delete.png","Delete shape selected", enabled=False)
-
+            ,DLETE,"res/delete.png","Delete shape selected", enabled=False)
          implement = action("Implement",self.implement
-            ,"a","res/event.png","Box line color", enabled=False)
-
+            ,IMPLEMENT,"res/event.png","Box line color", enabled=False)
          lineColor = action("Line color",lambda:self.boxColor("line")
-            ,"Ctrl+c","res/lineColor.png","Box line color", enabled=True)
-         barcodeColor = action("Text color",lambda:self.boxColor("text")
-            ,"Ctrl+Shift+c","res/textColor.png","Box text color", enabled=True)
-
+            ,LINECOLOR,"res/lineColor.png","Box line color", enabled=True)
+         textColor = action("Text color",lambda:self.boxColor("text")
+            ,TEXTCOLOR,"res/textColor.png","Box text color", enabled=True)
          nextImage = action("Next Image",self.openNextImg
-            ,"Ctrl+n","res/next.png","Next image", enabled=True)
+            ,NEXT,"res/next.png","Next image", enabled=True)
          backImage = action("Back Image",self.openPrevImg
-            ,"Ctrl+b","res/back.png","Back image", enabled=True)
-
-         zoomIn = action('zoomin', partial(self.addZoom, 10),
-                        'Ctrl++', 'res/zoom-in.png','zoominDetail', enabled=False)
-         zoomOut = action('zoomout', partial(self.addZoom, -10),
-                         'Ctrl+-', 'res/zoom-out.png','zoomoutDetail', enabled=False)
-         zoomOrg = action('originalsize', partial(self.setZoom, 100),
-                         'Ctrl+=', 'res/zoom.png','originalsizeDetail', enabled=False)
-         fitWindow = action('fitWin', self.setFitWindow,
-                           'Ctrl+F', 'res/fit-window.png','fitWinDetail',
-                           checkable=True, enabled=False)
-         fitWidth = action('fitWidth', self.setFitWidth,
-                          'Ctrl+Shift+F', 'res/fit-width.png','fitWidthDetail',
-                          checkable=True, enabled=False)
-
-         clearAll = action('clearAll', self.clearList,
-                          'Ctrl+Shift+d', 'res/clear-all.png','Clear all list items',
-                          checkable=True, enabled=True)
+            ,BACK,"res/back.png","Back image", enabled=True)
+         zoomIn = action('zoomin', partial(self.addZoom, 10)
+            ,ZOOMIN, 'res/zoom-in.png','zoominDetail', enabled=False)
+         zoomOut = action('zoomout', partial(self.addZoom, -10)
+            ,ZOOMOUT, 'res/zoom-out.png','zoomoutDetail', enabled=False)
+         zoomOrg = action('originalsize', partial(self.setZoom, 100)
+            ,ZOOMORG, 'res/zoom.png','originalsizeDetail', enabled=False)
+         fitWindow = action('fitWin', self.setFitWindow
+            ,FITWINDOW, 'res/fit-window.png','fitWinDetail',checkable=True, enabled=False)
+         fitWidth = action('fitWidth', self.setFitWidth
+            ,FITWIDTH, 'res/fit-width.png','fitWidthDetail',checkable=True, enabled=False)
+         clearAll = action('clearAll', self.clearList
+            ,CLEARALL, 'res/clear-all.png','Clear all list items',checkable=True, enabled=True)
 
          actionMenuFile = [openFile,openDir,saveFile]
          addActions(self.menus.file,actionMenuFile)
 
-         actionMenuEdit = [createShape,implement,editLabel,lineColor,barcodeColor,deleteShape]
+         actionMenuEdit = [createShape,implement,editLabel,copy,lineColor,textColor,deleteShape]
          addActions(self.menus.edit,actionMenuEdit)
 
          actionToolbar = (openFile,openDir,saveFile,createShape,editLabel,implement,nextImage,backImage)
@@ -154,10 +150,10 @@ class labelMaster(QMainWindow,WindowMixin):
          self.zoomWidget.setEnabled(False)
          
         # Group zoom controls into a list for easier toggling.
-         beginner = (implement,editLabel,deleteShape)
+         beginner = (implement,editLabel,copy,deleteShape)
          self.actions = struct(openFile=openFile,openDir=openDir,saveFile=saveFile,createShape=createShape
-                                ,editLabel=editLabel,deleteShape=deleteShape
-                                ,implement=implement,lineColor=lineColor,barcodeColor=barcodeColor
+                                ,editLabel=editLabel,deleteShape=deleteShape,copy=copy
+                                ,implement=implement,lineColor=lineColor,textColor=textColor
                                 ,nextImage=nextImage,backImage=backImage
                                 ,zoomIn=zoomIn,zoomOut=zoomOut
                                 ,zoomOrg=zoomOrg,fitWidth=fitWidth,fitWindow=fitWindow
@@ -280,8 +276,8 @@ class labelMaster(QMainWindow,WindowMixin):
          qImage = QImage(640,480,QImage.Format_RGBA8888)
          self.canvas.loadPixmap(QPixmap.fromImage(qImage))
 
-         self.canvas.text = "Hello\nLabel Master"
-         self.canvas.locText = QRect(50,50,400,100)
+         # self.canvas.text = "Hello\nLabel Master"
+         # self.canvas.locText = QRect(50,50,400,100)
 
         
          scroll = QScrollArea()
@@ -339,7 +335,9 @@ class labelMaster(QMainWindow,WindowMixin):
         txt = time.strftime("%H:%M:%S ")+str(obj)
         self.fileLogWidget.addItem(txt)
 
-     def getOCR(self,cvImg,rect=None,bUpdate=True,bLog=True):
+     def getOCR(self,cvImg,rect=None,label=None,index=None,bUpdate=True,bLog=True):
+        if rect is None or label is None or index is None:
+            return
         txt = get_text(cvImg)
         lstText= txt.split("\n")
         nchars = [len(a) for a in lstText]
@@ -350,19 +348,26 @@ class labelMaster(QMainWindow,WindowMixin):
         elif bUpdate:
             w,h = rect.width(),rect.height()
             txt = "\t"+txt
-            self.canvas.text = txt
+            self.canvas.text[index] = txt
+            if label == OCR:
+                self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
+            elif label == BARCODE:
+                self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
+            rect.setWidth(40*(n))
+            self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
             
             # self.canvas.fontText = QFont("Arial",(1.5*w)//n)
-            self.canvas.fontText = QFont("Arial",20)
-            self.canvas.fontText.setItalic(True)
-            rect.setWidth(40*(n))
-            self.canvas.locText = rect.translated(QPoint(0,-h))
+            # self.canvas.fontText = QFont("Arial",20)
+            
+            
             # self.canvas.fontText.setUnderline(True)
             self.canvas.update()
 
         return txt
 
-     def getBarCode(self,cvImg,rect=None,bLog=True,bUpdate=True):
+     def getBarCode(self,cvImg,rect=None,label=None,index=None,bLog=True,bUpdate=True):
+        if rect is None or label is None or index is None:
+            return
         codes = getBarcode(cvImg)
         if codes:
             for code,dtype in codes:
@@ -375,18 +380,20 @@ class labelMaster(QMainWindow,WindowMixin):
                     for code,dtype in codes:
                         txt += "\t"+code+" , "+dtype+"\n"
                         n = max(n,len(code))
-                    self.canvas.text = txt
-                    self.canvas.fontText = QFont("Arial",20)
-                    self.canvas.fontText.setItalic(True)
+                    self.canvas.text[index] = txt
+                    if label == OCR:
+                        self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
+                    elif label == BARCODE:
+                        self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
                     rect.setWidth(40*(n))
-                    self.canvas.locText = rect
+                    self.canvas.locText[index] = rect
                     self.canvas.update()
         else:
             if bLog:
                 self.logFile("Code : ")
             if bUpdate:
-                self.canvas.text = ""
-                self.canvas.locText = rect
+                # self.canvas.text = []
+                # self.canvas.locText = []
                 self.canvas.update()
     
         return codes
@@ -401,6 +408,7 @@ class labelMaster(QMainWindow,WindowMixin):
 
      def createShape(self):
         self.canvas.setEditing(False)
+
         self.actions.createShape.setEnabled(False)
 
      def remLabel(self, shape):
@@ -409,11 +417,12 @@ class labelMaster(QMainWindow,WindowMixin):
             return
         item = self.shapesToItems[shape]
         self.labelList.takeItem(self.labelList.row(item))
-        self.canvas.text = None
-        self.canvas.locText = None
+        self.canvas.text = []
+        self.canvas.locText = []
         if self.labelList.count() == 0:
             self.actions.implement.setEnabled(False)
             self.actions.editLabel.setEnabled(False)
+            self.actions.copy.setEnabled(False)
             self.actions.deleteShape.setEnabled(False)
 
         del self.shapesToItems[shape]
@@ -430,8 +439,8 @@ class labelMaster(QMainWindow,WindowMixin):
                 Shape.line_color = color
                 self.canvas.setDrawingColor(color)
             elif obj == TEXT:
-                self.barcodeColor = color
-                self.canvas.drawingTextColor = color
+                pass
+                # self.canvas.drawingTextColor = color
 
             self.canvas.update()
             self.setDirty()
@@ -440,21 +449,32 @@ class labelMaster(QMainWindow,WindowMixin):
      def deleteSelectedShape(self):
         self.remLabel(self.canvas.deleteSelected())
      
-     def implement(self):
-        if self.qImage is None:
-            return
-        shape = self.canvas.selectedShape
-        # print(shape.points)
+     def shapeProcess(self,shape):
         if shape:
+            index = self.canvas.shapes.index(shape)
             rect,label = self.formatShape(shape)
             roi = self.qImage.copy(rect)
             cvRoi = qImageToCvMat(roi)
+            if cvRoi is None:
+                return
             if label == OCR:
-                self.getOCR(cvRoi,rect,bLog=False)
+                self.getOCR(cvRoi,rect,label,index,bLog=False)
             elif label == BARCODE:
-                self.getBarCode(cvRoi,rect,bLog=False)
-            elif label == CROP:
-                self.saveImage(cvRoi)
+                self.getBarCode(cvRoi,rect,label,index,bLog=False)
+            # elif label == CROP:
+            #     self.saveImage(cvRoi)
+
+     def implement(self):
+        if self.qImage is None:
+            return
+        shapes = self.canvas.shapes
+
+        self.canvas.text = len(shapes)*[None]
+        self.canvas.locText = len(shapes)*[None]
+        self.canvas.drawingTextColor = len(shapes)*[None]
+        # print(shape.points)
+        self.pool.map(self.shapeProcess,shapes)
+            
     
      def open(self):
         filters = "All File(*.*);;JPG iamge (*.jpg)"
@@ -597,14 +617,19 @@ class labelMaster(QMainWindow,WindowMixin):
 
      def loopImplement(self):
         while self.bLoopImplement:
-            if self.bSelectionChanged and self.bAutoImplement:
+            if self.bAutoImplement:
                 self.implement()
             time.sleep(0.02)
 
      # redraw rect
      # ======signal slot================
+     def copySelectedShape(self):
+        self.addLabel(self.canvas.copySelectedShape())
+        # fix copy and delete
+        self.shapeSelectionChanged(True)
+
      def textChanged(self,text):
-        self.canvas.text = text
+        # self.canvas.text = text
         self.canvas.update()
      # ================add and edit Label===========================
      def stateChanged(self,iState):
@@ -612,7 +637,7 @@ class labelMaster(QMainWindow,WindowMixin):
             self.bAutoImplement = True
         elif iState == 0:
             self.bAutoImplement = False
-            self.canvas.text =None
+            self.canvas.text = []
             self.canvas.update()
 
      def fileitemDoubleClicked(self, item=None):
@@ -662,6 +687,7 @@ class labelMaster(QMainWindow,WindowMixin):
         self.bSelectionChanged = selected
         self.actions.implement.setEnabled(selected)
         self.actions.editLabel.setEnabled(selected)
+        self.actions.copy.setEnabled(selected)
         self.actions.deleteShape.setEnabled(selected)
         # self.actions.shapeLineColor.setEnabled(selected)
         # self.actions.shapeFillColor.setEnabled(selected)
@@ -846,8 +872,10 @@ class labelMaster(QMainWindow,WindowMixin):
         # self.labelList.clear()
         # self.itemsToShapes.clear()
         # self.shapesToItems.clear()
-        self.canvas.locText = None
-        self.canvas.text = None
+        self.canvas.locText = len(self.canvas.shapes)*[None]
+        self.canvas.text = len(self.canvas.shapes)*[None]
+        self.canvas.drawingTextColor = len(self.canvas.shapes)*[None]
+
         self.canvas.resetState()
         self.labelCoordinates.clear()
         self.canvas.setEnabled(False)

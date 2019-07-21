@@ -1,0 +1,1 @@
+pyuic5 -x paramsCv.ui -o paramsCv_ui.py

@@ -6,7 +6,7 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
-from libs.utils import newIcon, labelValidator ,generateColorByText
+from libs.utils import newIcon, labelValidator
 
 BB = QDialogButtonBox
 
@@ -38,23 +38,13 @@ class LabelDialog(QDialog):
 
         if listItem is not None and len(listItem) > 0:
             self.listWidget = QListWidget(self)
-            for itemText in listItem:
-                item = self.listWidget.addItem(itemText)
-                # item.setBackground(generateColorByText(item.text()))
-
+            for item in listItem:
+                self.listWidget.addItem(item)
             self.listWidget.itemClicked.connect(self.listItemClick)
             self.listWidget.itemDoubleClicked.connect(self.listItemDoubleClick)
             layout.addWidget(self.listWidget)
 
-        self.listItems = self.iterAllItems()
-
         self.setLayout(layout)
-
-    def iterAllItems(self):
-        for i in range(self.listWidget.count()):
-            item = self.listWidget.item(i)
-            item.setBackground(generateColorByText(item.text()))
-            yield self.listWidget.item(i)
 
     def validate(self):
         try:
@@ -76,10 +66,6 @@ class LabelDialog(QDialog):
         self.edit.setText(text)
         self.edit.setSelection(0, len(text))
         self.edit.setFocus(Qt.PopupFocusReason)
-        # def iterAllItems(self):
-        for item in self.listItems:
-            if item.text() == text:
-                item.setSelected(True)
         if move:
             self.move(QCursor.pos())
         return self.edit.text() if self.exec_() else None

@@ -68,7 +68,7 @@ class Canvas(QWidget):
         self.locText = []
         self.drawingTextColor = []
         self.fontText = QFont("Arial",20)
-        self.fontText.setItalic(True)
+        # self.fontText.setItalic(True)
         
         #===byMe==========
 
@@ -467,15 +467,14 @@ class Canvas(QWidget):
 
         #===byMe==========
         #paint text
-        if len(self.text) > 0 and len(self.locText) > 0 and len(self.drawingTextColor) > 0:
-            for txt,loc,color in zip(self.text,self.locText,self.drawingTextColor):
-                if color is not None and loc is not None and txt is not None:
-                    p.setPen(color)
-                    p.setFont(self.fontText)
-                    if isinstance(loc,QPoint):
-                        p.drawText(loc,txt)
-                    else:
-                        p.drawText(loc,Qt.AlignLeft,txt)
+        for txt,loc,color in zip(self.text,self.locText,self.drawingTextColor):
+            if color is not None and loc is not None and txt is not None:
+                p.setPen(color)
+                p.setFont(self.fontText)
+                if isinstance(loc,QPoint):
+                    p.drawText(loc,txt)
+                else:
+                    p.drawText(loc,Qt.AlignLeft,txt)
 
         #===byMe==========
         # Paint rect

@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 from libs.canvas import *
 from libs.utils import *
 from libs.constants import *
+from libs.stringBundle import StringBundle
 from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
 from libs.hashableQListWidgetItem import *
 from libs.toolBar import ToolBar
@@ -19,7 +20,6 @@ from UI_Convert.cameraDlg import cameraDlg
 import os,time,threading
 from functools import partial
 from multiprocessing.dummy import Pool
-
 
 __appname__ = "CopyRight2019 label master."
 __imageFile__ = [".jpg",".png",".bmp",".gif",".PNG"]
@@ -61,6 +61,9 @@ class labelMaster(QMainWindow,WindowMixin):
          self.bAutoImplement = False
          self.bSelectionChanged = False
          self.pool = Pool(5)
+
+         self.stringBundle = StringBundle.getBundle()
+         getStr = lambda strId: self.stringBundle.getString(strId)
 
          fileLabel = "label.txt"
          listLabel = []
@@ -256,17 +259,24 @@ class labelMaster(QMainWindow,WindowMixin):
          self.camerdock.setWidget(self.cameraDlg)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
-         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
-         self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
+         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
+         # self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
+         self.dock.setFeatures(self.dockFeatures)
+
+         labels = self.dock.toggleViewAction()
+         labels.setText('Show/Hide boxLabel')
+         labels.setShortcut('Ctrl+Shift+L')
+
+         addActions(self.menus.view,[labels])
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.filedock)
-         self.filedock.setFeatures(QDockWidget.DockWidgetFloatable)
+         self.filedock.setFeatures(self.dockFeatures)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.parameterdock)
-         self.parameterdock.setFeatures(QDockWidget.DockWidgetFloatable)
+         self.parameterdock.setFeatures(self.dockFeatures)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.camerdock)
-         self.camerdock.setFeatures(QDockWidget.DockWidgetFloatable)
+         self.camerdock.setFeatures(self.dockFeatures)
 
          # ==============Canvas================
          self.canvas = Canvas(self)
@@ -338,7 +348,15 @@ class labelMaster(QMainWindow,WindowMixin):
      def getOCR(self,cvImg,rect=None,label=None,index=None,bUpdate=True,bLog=True):
         if rect is None or label is None or index is None:
             return
-        txt = get_text(cvImg)
+
+        lang = self.paramsCvWidget.ui.cbb_lang.currentText()
+        oem = self.paramsCvWidget.ui.cbb_oem.currentIndex()
+        psm = self.paramsCvWidget.ui.cbb_psm.currentIndex()
+        config = '--oem %d --psm %d'%(oem,psm)
+
+        print(config)
+
+        txt = get_text(cvImg,lang,config=config)
         lstText= txt.split("\n")
         nchars = [len(a) for a in lstText]
         n = max(nchars) + 1
@@ -348,12 +366,17 @@ class labelMaster(QMainWindow,WindowMixin):
         elif bUpdate:
             w,h = rect.width(),rect.height()
             txt = "\t"+txt
-            self.canvas.text[index] = txt
+            if lang == "eng":
+                self.canvas.text[index] = txt
+            else:
+                self.canvas.text[index] = txt.encode("utf-8").decode("utf-8")
+
             if label == OCR:
                 self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
             elif label == BARCODE:
                 self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
             rect.setWidth(40*(n))
+            rect.setHeight(len(lstText)*h)
             self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
             
             # self.canvas.fontText = QFont("Arial",(1.5*w)//n)
@@ -453,14 +476,18 @@ class labelMaster(QMainWindow,WindowMixin):
         if shape:
             index = self.canvas.shapes.index(shape)
             rect,label = self.formatShape(shape)
-            roi = self.qImage.copy(rect)
-            cvRoi = qImageToCvMat(roi)
+            try:
+                roi = self.qImage.copy(rect)
+                cvRoi = qImageToCvMat(roi)
+            except:
+                cvRoi = None
+
             if cvRoi is None:
                 return
             if label == OCR:
-                self.getOCR(cvRoi,rect,label,index,bLog=False)
+                self.getOCR(cvRoi,rect,label,index,bLog=False,bUpdate=True)
             elif label == BARCODE:
-                self.getBarCode(cvRoi,rect,label,index,bLog=False)
+                self.getBarCode(cvRoi,rect,label,index,bLog=False,bUpdate=True)
             # elif label == CROP:
             #     self.saveImage(cvRoi)
 
@@ -479,7 +506,9 @@ class labelMaster(QMainWindow,WindowMixin):
      def open(self):
         filters = "All File(*.*);;JPG iamge (*.jpg)"
         self.filePath,_ = QFileDialog.getOpenFileName(self,'Select File',"", filters)
-        self.loadFile(self.filePath)
+        if self.filePath:
+            self.mImgList = []
+            self.loadFile(self.filePath)
         
 
      def loadFile(self,filePath):
@@ -490,7 +519,7 @@ class labelMaster(QMainWindow,WindowMixin):
             self.resetState()
             self.qImage = QImage(filePath)
             # self.qImage = self.qImage.convertToFormat(QImage.Format_ARGB32)
-            # self.logFile(getFormatQImage(self.qImage))
+            self.logFile(getFormatQImage(self.qImage))
             # self.cvMat = cv2.imread(self.filePath)
             # if isinstance(self.cvMat,np.ndarray):
             # qImg = cVMatToQImage(self.cvMat[...,::-1])
@@ -562,7 +591,6 @@ class labelMaster(QMainWindow,WindowMixin):
             filename = self.mImgList[0]
         else:
             currIndex = self.mImgList.index(self.filePath)
-            print(currIndex)
             if currIndex + 1 < len(self.mImgList):
                 filename = self.mImgList[currIndex + 1]
 
@@ -762,7 +790,7 @@ class labelMaster(QMainWindow,WindowMixin):
         self.setZoom(self.zoomWidget.value() + increment)
 
      def zoomRequest(self,delta):
-        print(delta)
+        # print(delta)
         # get the current scrollbar positions
         # calculate the percentages ~ coordinates
         h_bar = self.scrollBars[Qt.Horizontal]
@@ -852,7 +880,10 @@ class labelMaster(QMainWindow,WindowMixin):
         a1 = w1 / h1
         # Calculate a new scale value based on the pixmap's aspect ratio.
         w2 = self.canvas.pixmap.width() - 0.0
-        h2 = self.canvas.pixmap.height() - 0.0
+        h2 = self.canvas.pixmap.height() - 0.0 
+        # a2 = w2/h2
+        if h2 == 0 :
+            h2 = 1 
         a2 = w2 / h2
         return w1 / w2 if a2 >= a1 else h1 / h2
 

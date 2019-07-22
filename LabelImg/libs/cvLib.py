@@ -71,12 +71,8 @@ def get_meanStd(img,rois=-1):
 # tessdata_dir_config = r'--tessdata-dir "<replace_with_your_tessdata_dir_path>"'
 # pytesseract.image_to_string(image, lang='chi_sim', config=tessdata_dir_config)
 
-def get_text(img,config = ('-l eng --oem 1 --psm 3')):
-    # if len(img.shape) > 2:
-    #     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    # else:
-    #     gray = img
-    return pytesseract.image_to_string(img)
+def get_text(img,lang,config = ('--oem 1 --psm 3')):
+    return pytesseract.image_to_string(img,lang=lang)
 # barcode
 def getMatrixCode(img):
 	try:
@@ -90,3 +86,10 @@ def getBarcode(img):
 		return [[code.data.decode("utf-8"),code.type]for code in codes]
 	except:
 		return None
+
+
+# img = cv2.imread("D:\\GitHub\\PyQt_Form\\LabelImg\\data\\kor.jpg")
+# txt = get_text(img,lang="kor",config="--oem 1 --psm 3")
+# print(txt)
+# import codecs
+

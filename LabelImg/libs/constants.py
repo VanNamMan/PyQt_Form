@@ -46,7 +46,7 @@ FITWINDOW = "Ctrl+f"
 FITWIDTH = "Ctrl+Shift+f"
 #======ShapeColor=======
 OCR_TEXTCOLOR = QColor(255,0,0)
-BARCODE_TEXTCOLOR = QColor(155,170,0)
+BARCODE_TEXTCOLOR = QColor(0,255,0)
 
 
 

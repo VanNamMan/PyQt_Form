@@ -2,6 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+from libs.fileWork import *
 from libs.canvas import *
 from libs.utils import *
 from libs.constants import *
@@ -16,6 +17,7 @@ from libs.zoomWidget import ZoomWidget
 from libs.cvLib import *
 from UI_Convert.paramsCv import paramsCv
 from UI_Convert.cameraDlg import cameraDlg
+# from UI_Convert.output import ouput
 
 import os,time,threading
 from functools import partial
@@ -45,6 +47,7 @@ class labelMaster(QMainWindow,WindowMixin):
      def __init__(self):
          QWidget.__init__(self)
          # self.setFixedSize(800, 600)
+         # self.descisionDlg = ouput(self)
          self.setWindowTitle("Label Master")
          self.labelCoordinates = QLabel('')
          self.statusBar().addPermanentWidget(self.labelCoordinates)
@@ -59,8 +62,10 @@ class labelMaster(QMainWindow,WindowMixin):
          self.prevLabel = "Enter object label"
          self.bLoopImplement = True
          self.bAutoImplement = False
+         self.bSaveOutput = False
          self.bSelectionChanged = False
          self.pool = Pool(5)
+         self.output = []
 
          self.stringBundle = StringBundle.getBundle()
          getStr = lambda strId: self.stringBundle.getString(strId)
@@ -112,11 +117,13 @@ class labelMaster(QMainWindow,WindowMixin):
          deleteShape = action("Delete shape",self.deleteSelectedShape
             ,DLETE,"res/delete.png","Delete shape selected", enabled=False)
          implement = action("Implement",self.implement
-            ,IMPLEMENT,"res/event.png","Box line color", enabled=False)
+            ,IMPLEMENT,"res/event.png","Implement", enabled=False)
          lineColor = action("Line color",lambda:self.boxColor("line")
             ,LINECOLOR,"res/lineColor.png","Box line color", enabled=True)
          textColor = action("Text color",lambda:self.boxColor("text")
             ,TEXTCOLOR,"res/textColor.png","Box text color", enabled=True)
+         font = action("Font",self.boxFont
+            ,TEXTFONT,"res/font.png","Box font text", enabled=True)
          nextImage = action("Next Image",self.openNextImg
             ,NEXT,"res/next.png","Next image", enabled=True)
          backImage = action("Back Image",self.openPrevImg
@@ -137,7 +144,7 @@ class labelMaster(QMainWindow,WindowMixin):
          actionMenuFile = [openFile,openDir,saveFile]
          addActions(self.menus.file,actionMenuFile)
 
-         actionMenuEdit = [createShape,implement,editLabel,copy,lineColor,textColor,deleteShape]
+         actionMenuEdit = [createShape,implement,editLabel,copy,lineColor,textColor,font,deleteShape]
          addActions(self.menus.edit,actionMenuEdit)
 
          actionToolbar = (openFile,openDir,saveFile,createShape,editLabel,implement,nextImage,backImage)
@@ -156,7 +163,8 @@ class labelMaster(QMainWindow,WindowMixin):
          beginner = (implement,editLabel,copy,deleteShape)
          self.actions = struct(openFile=openFile,openDir=openDir,saveFile=saveFile,createShape=createShape
                                 ,editLabel=editLabel,deleteShape=deleteShape,copy=copy
-                                ,implement=implement,lineColor=lineColor,textColor=textColor
+                                ,implement=implement
+                                ,lineColor=lineColor,textColor=textColor,font=font
                                 ,nextImage=nextImage,backImage=backImage
                                 ,zoomIn=zoomIn,zoomOut=zoomOut
                                 ,zoomOrg=zoomOrg,fitWidth=fitWidth,fitWindow=fitWindow
@@ -177,13 +185,22 @@ class labelMaster(QMainWindow,WindowMixin):
         # Create a widget for using default label
          self.useDefaultLabelCheckbox = QCheckBox('useDefaultLabel')
          self.useDefaultLabelCheckbox.setChecked(False)
+
          self.defaultLabelTextLine = QLineEdit()
+
          self.autoImplement = QCheckBox('autoImplement')
          self.autoImplement.setChecked(False)
+
+         self.saveOutput = QCheckBox('saveOutput')
+         self.saveOutput.setChecked(False)
+
          self.autoImplement.stateChanged.connect(self.stateChanged)
+         self.saveOutput.stateChanged.connect(self.stateChanged)
+
          useDefaultLabelQHBoxLayout = QHBoxLayout()
          useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
          useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+         useDefaultLabelQHBoxLayout.addWidget(self.saveOutput)
          useDefaultLabelQHBoxLayout.addWidget(self.autoImplement)
 
          useDefaultLabelContainer = QWidget()
@@ -209,7 +226,7 @@ class labelMaster(QMainWindow,WindowMixin):
 
          listLayout.addWidget(useDefaultLabelContainer)
 
-        # Create and add a widget for showing current label items
+        # Create and add a dock widget for showing current label items
          self.labelList = QListWidget()
          addActions(self.menus.labelList, (editLabel, deleteShape))
          self.labelList.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -253,21 +270,15 @@ class labelMaster(QMainWindow,WindowMixin):
          self.paramsCvWidget.ui.ln_kThresh.textChanged.connect(self.textChanged)
          self.parameterdock.setWidget(self.paramsCvWidget)
 
-         self.camerdock = QDockWidget('camera', self)
-         self.camerdock.setObjectName('cameara')
+         self.cameradock = QDockWidget('camera', self)
+         self.cameradock.setObjectName('cameara')
          self.cameraDlg = cameraDlg(self)
-         self.camerdock.setWidget(self.cameraDlg)
+         self.cameradock.setWidget(self.cameraDlg)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
          self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
          # self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
          self.dock.setFeatures(self.dockFeatures)
-
-         labels = self.dock.toggleViewAction()
-         labels.setText('Show/Hide boxLabel')
-         labels.setShortcut('Ctrl+Shift+L')
-
-         addActions(self.menus.view,[labels])
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.filedock)
          self.filedock.setFeatures(self.dockFeatures)
@@ -275,8 +286,31 @@ class labelMaster(QMainWindow,WindowMixin):
          self.addDockWidget(Qt.RightDockWidgetArea, self.parameterdock)
          self.parameterdock.setFeatures(self.dockFeatures)
 
-         self.addDockWidget(Qt.RightDockWidgetArea, self.camerdock)
-         self.camerdock.setFeatures(self.dockFeatures)
+         self.addDockWidget(Qt.RightDockWidgetArea, self.cameradock)
+         self.cameradock.setFeatures(self.dockFeatures)
+
+         toggleDock = self.dock.toggleViewAction()
+         toggleDock.setText('boxLabel')
+         toggleDock.setShortcut('Ctrl+Shift+z')
+
+         toggleFileDock = self.filedock.toggleViewAction()
+         toggleFileDock.setText('logFile')
+         toggleFileDock.setShortcut('Ctrl+Shift+x')
+
+         toggleParaDock = self.parameterdock.toggleViewAction()
+         toggleParaDock.setText('parameter')
+         toggleParaDock.setShortcut('Ctrl+Shift+v')
+
+         toggleCamDock = self.cameradock.toggleViewAction()
+         toggleCamDock.setText('camera')
+         toggleCamDock.setShortcut('Ctrl+Shift+c')
+
+         # self.dock.hide()
+         self.filedock.hide()
+         self.parameterdock.hide()
+         self.cameradock.hide()
+         
+         addActions(self.menus.view,[toggleDock,toggleFileDock,toggleParaDock,toggleCamDock])
 
          # ==============Canvas================
          self.canvas = Canvas(self)
@@ -345,8 +379,21 @@ class labelMaster(QMainWindow,WindowMixin):
         txt = time.strftime("%H:%M:%S ")+str(obj)
         self.fileLogWidget.addItem(txt)
 
-     def getOCR(self,cvImg,rect=None,label=None,index=None,bUpdate=True,bLog=True):
-        if rect is None or label is None or index is None:
+     def getOCR(self,shape=None,bUpdate=True,bLog=True):
+
+        if shape is None:
+            return
+
+        index = self.canvas.shapes.index(shape)
+        rect,label = self.formatShape(shape)
+
+        try:
+                roi = self.qImage.copy(rect)
+                cvRoi = qImageToCvMat(roi)
+        except:
+                cvRoi = None
+
+        if cvRoi is None:
             return
 
         lang = self.paramsCvWidget.ui.cbb_lang.currentText()
@@ -354,44 +401,57 @@ class labelMaster(QMainWindow,WindowMixin):
         psm = self.paramsCvWidget.ui.cbb_psm.currentIndex()
         config = '--oem %d --psm %d'%(oem,psm)
 
-        print(config)
+        # print(config)
 
-        txt = get_text(cvImg,lang,config=config)
-        lstText= txt.split("\n")
-        nchars = [len(a) for a in lstText]
-        n = max(nchars) + 1
+        txt = get_text(cvRoi,lang,config=config)
+        shape.output = struct(id=index,rect=rect,label=label,text=txt,barcode=None)
+        # lstText= txt.split("\n")
+        # nchars = [len(a) for a in lstText]
+        # n = max(nchars) + 1
    
         if bLog:
             self.logFile(txt)
         elif bUpdate:
             w,h = rect.width(),rect.height()
-            txt = "\t"+txt
+
             if lang == "eng":
                 self.canvas.text[index] = txt
             else:
                 self.canvas.text[index] = txt.encode("utf-8").decode("utf-8")
 
-            if label == OCR:
-                self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
-            elif label == BARCODE:
-                self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
-            rect.setWidth(40*(n))
-            rect.setHeight(len(lstText)*h)
+            # if label == OCR:
+            #     self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
+            # elif label == BARCODE:
+            #     self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
+            # rect.setWidth(40*(n))
+            # rect.setHeight(len(lstText)*h)
+            # self.canvas.fontText = QFont("Arial",20)
             self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
             
-            # self.canvas.fontText = QFont("Arial",(1.5*w)//n)
-            # self.canvas.fontText = QFont("Arial",20)
-            
-            
-            # self.canvas.fontText.setUnderline(True)
             self.canvas.update()
 
         return txt
 
-     def getBarCode(self,cvImg,rect=None,label=None,index=None,bLog=True,bUpdate=True):
-        if rect is None or label is None or index is None:
+     def getBarCode(self,shape=None,bLog=True,bUpdate=True):
+
+        if shape is None:
             return
-        codes = getBarcode(cvImg)
+        
+        index = self.canvas.shapes.index(shape)
+        rect,label = self.formatShape(shape)
+
+        try:
+                roi = self.qImage.copy(rect)
+                cvRoi = qImageToCvMat(roi)
+        except:
+                cvRoi = None
+
+        if cvRoi is None:
+            return
+
+        codes = getBarcode(cvRoi)
+        shape.output = struct(id=index,rect=rect,label=label,text=None,barcode=codes)
+
         if codes:
             for code,dtype in codes:
                 if bLog:
@@ -401,22 +461,21 @@ class labelMaster(QMainWindow,WindowMixin):
                     txt = ""
                     n = 1
                     for code,dtype in codes:
-                        txt += "\t"+code+" , "+dtype+"\n"
-                        n = max(n,len(code))
+                        txt += code+" , "+dtype+"\n"
+                        # n = max(n,len(code))
                     self.canvas.text[index] = txt
-                    if label == OCR:
-                        self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
-                    elif label == BARCODE:
-                        self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
-                    rect.setWidth(40*(n))
+                    # if label == OCR:
+                    #     self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
+                    # elif label == BARCODE:
+                    #     self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
+                    # rect.setWidth(40*(n))
+                    # self.canvas.fontText = QFont("Arial",20)
                     self.canvas.locText[index] = rect
                     self.canvas.update()
         else:
             if bLog:
                 self.logFile("Code : ")
             if bUpdate:
-                # self.canvas.text = []
-                # self.canvas.locText = []
                 self.canvas.update()
     
         return codes
@@ -451,6 +510,10 @@ class labelMaster(QMainWindow,WindowMixin):
         del self.shapesToItems[shape]
         del self.itemsToShapes[item]
         
+     def boxFont(self):
+        font, ok = QFontDialog.getFont()
+        if ok:
+            self.canvas.fontText = font
 
      def boxColor(self,obj):
         color = self.colorDialog.getColor(self.lineColor, u'Choose line color',
@@ -462,34 +525,37 @@ class labelMaster(QMainWindow,WindowMixin):
                 Shape.line_color = color
                 self.canvas.setDrawingColor(color)
             elif obj == TEXT:
-                pass
-                # self.canvas.drawingTextColor = color
+                # pass
+                self.canvas.drawingTextColor = color
 
             self.canvas.update()
             self.setDirty()
-
 
      def deleteSelectedShape(self):
         self.remLabel(self.canvas.deleteSelected())
      
      def shapeProcess(self,shape):
         if shape:
-            index = self.canvas.shapes.index(shape)
-            rect,label = self.formatShape(shape)
-            try:
-                roi = self.qImage.copy(rect)
-                cvRoi = qImageToCvMat(roi)
-            except:
-                cvRoi = None
-
-            if cvRoi is None:
-                return
-            if label == OCR:
-                self.getOCR(cvRoi,rect,label,index,bLog=False,bUpdate=True)
-            elif label == BARCODE:
-                self.getBarCode(cvRoi,rect,label,index,bLog=False,bUpdate=True)
+            if shape.label == OCR:
+                text = self.getOCR(shape,bLog=False,bUpdate=True)
+                # self.output.append()
+            elif shape.label == BARCODE:
+                codes = self.getBarCode(shape,bLog=False,bUpdate=True)
             # elif label == CROP:
             #     self.saveImage(cvRoi)
+        if shape.output is not None:
+            r = shape.output.rect
+            codes = shape.output.barcode
+            strCode = ""
+            if isinstance(codes,list):
+                for code,_ in codes:
+                    strCode+=","+code
+            return [shape.output.id,shape.output.label
+            ,"%d,%d,%d,%d"%(r.x(),r.y(),r.width(),r.height())
+            ,shape.output.text
+            ,strCode]
+        else:
+            return None
 
      def implement(self):
         if self.qImage is None:
@@ -498,9 +564,13 @@ class labelMaster(QMainWindow,WindowMixin):
 
         self.canvas.text = len(shapes)*[None]
         self.canvas.locText = len(shapes)*[None]
-        self.canvas.drawingTextColor = len(shapes)*[None]
+        # self.canvas.drawingTextColor = len(shapes)*[None]
         # print(shape.points)
-        self.pool.map(self.shapeProcess,shapes)
+        self.logFile(np.array(self.pool.map(self.shapeProcess,shapes)))
+        if self.bSaveOutput:
+            save_to_csv("output/output.csv"
+                ,np.array(self.pool.map(self.shapeProcess,shapes))
+                ,columns = ["id","label","rect","text","barcode"])
             
     
      def open(self):
@@ -632,12 +702,14 @@ class labelMaster(QMainWindow,WindowMixin):
         # self.implement()
 
      def formatShape(self,shape):
-            points = shape.points
-            tl = points[0].toPoint()
-            br = points[2].toPoint()
-            label = shape.label
-            cvRect = QRect(tl,br)
-            return [cvRect,label]
+        if shape is None:
+            return [None,None]
+        points = shape.points
+        tl = points[0].toPoint()
+        br = points[2].toPoint()
+        label = shape.label
+        cvRect = QRect(tl,br)
+        return [cvRect,label]
 
      def myThread(self,target,args=()):
         thread = threading.Thread(target=target,args=args)
@@ -661,11 +733,9 @@ class labelMaster(QMainWindow,WindowMixin):
         self.canvas.update()
      # ================add and edit Label===========================
      def stateChanged(self,iState):
-        if iState == 2:
-            self.bAutoImplement = True
-        elif iState == 0:
-            self.bAutoImplement = False
-            self.canvas.text = []
+            self.bAutoImplement = self.autoImplement.isChecked()
+            self.bSaveOutput = self.saveOutput.isChecked()
+
             self.canvas.update()
 
      def fileitemDoubleClicked(self, item=None):
@@ -726,6 +796,7 @@ class labelMaster(QMainWindow,WindowMixin):
         item = self.currentItem()
         if not item:
             return
+        # self.descisionDlg.show()
         text = self.labelDialog.popUp(item.text())
         if text is not None:
             shape = self.itemsToShapes[item]
@@ -905,7 +976,7 @@ class labelMaster(QMainWindow,WindowMixin):
         # self.shapesToItems.clear()
         self.canvas.locText = len(self.canvas.shapes)*[None]
         self.canvas.text = len(self.canvas.shapes)*[None]
-        self.canvas.drawingTextColor = len(self.canvas.shapes)*[None]
+        # self.canvas.drawingTextColor = len(self.canvas.shapes)*[None]
 
         self.canvas.resetState()
         self.labelCoordinates.clear()

@@ -9,7 +9,7 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
-from libs.utils import distance
+from libs.utils import distance,struct
 import sys
 
 DEFAULT_LINE_COLOR = QColor(0, 255, 0, 128)
@@ -39,6 +39,10 @@ class Shape(object):
     scale = 1.0
 
     def __init__(self, label=None, line_color=None, difficult=False, paintLabel=False):
+
+        #byMe , ouput of shape
+        self.output = None
+        #==============
         self.label = label
         self.points = []
         self.fill = False

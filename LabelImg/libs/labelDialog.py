@@ -48,6 +48,20 @@ class LabelDialog(QDialog):
 
         self.listItems = self.iterAllItems()
 
+        hlayout = QHBoxLayout()
+
+        label = QLabel("Descision",self)
+        self.modeDescision = QComboBox(self)
+        for item in ["Compare","Value"]:
+            self.modeDescision.addItem(item)
+        self.rangeDescision = QLineEdit("min,max",self)
+
+        hlayout.addWidget(label)
+        hlayout.addWidget(self.modeDescision )
+        hlayout.addWidget(self.rangeDescision)
+
+        layout.addLayout(hlayout)
+
         self.setLayout(layout)
 
     def iterAllItems(self):

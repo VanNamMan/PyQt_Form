@@ -37,6 +37,7 @@ CLEARALL = "Ctrl+Shift+q"
 IMPLEMENT = "a"
 LINECOLOR = "Alt+c"
 TEXTCOLOR = "Alt+Shift+c"
+TEXTFONT = "Alt+Shift+f"
 NEXT = "Ctrl+n"
 BACK = "Ctrl+b"
 ZOOMIN = "Ctrl++"
@@ -46,7 +47,7 @@ FITWINDOW = "Ctrl+f"
 FITWIDTH = "Ctrl+Shift+f"
 #======ShapeColor=======
 OCR_TEXTCOLOR = QColor(255,0,0)
-BARCODE_TEXTCOLOR = QColor(0,255,0)
+BARCODE_TEXTCOLOR = QColor(255,255,0)
 
 
 

@@ -66,7 +66,7 @@ class Canvas(QWidget):
         #===byMe==========
         self.text = []
         self.locText = []
-        self.drawingTextColor = []
+        self.drawingTextColor = Qt.red
         self.fontText = QFont("Arial",20)
         # self.fontText.setItalic(True)
         
@@ -467,9 +467,9 @@ class Canvas(QWidget):
 
         #===byMe==========
         #paint text
-        for txt,loc,color in zip(self.text,self.locText,self.drawingTextColor):
-            if color is not None and loc is not None and txt is not None:
-                p.setPen(color)
+        for txt,loc in zip(self.text,self.locText):
+            if loc is not None and txt is not None:
+                p.setPen(self.drawingTextColor)
                 p.setFont(self.fontText)
                 if isinstance(loc,QPoint):
                     p.drawText(loc,txt)

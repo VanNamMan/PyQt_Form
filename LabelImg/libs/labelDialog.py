@@ -7,6 +7,7 @@ except ImportError:
     from PyQt4.QtCore import *
 
 from libs.utils import newIcon, labelValidator ,generateColorByText
+from libs.hashableQListWidgetItem import *
 
 BB = QDialogButtonBox
 
@@ -39,6 +40,7 @@ class LabelDialog(QDialog):
         if listItem is not None and len(listItem) > 0:
             self.listWidget = QListWidget(self)
             for itemText in listItem:
+
                 item = self.listWidget.addItem(itemText)
                 # item.setBackground(generateColorByText(item.text()))
 
@@ -48,25 +50,13 @@ class LabelDialog(QDialog):
 
         self.listItems = self.iterAllItems()
 
-        hlayout = QHBoxLayout()
-
-        label = QLabel("Descision",self)
-        self.modeDescision = QComboBox(self)
-        for item in ["Compare","Value"]:
-            self.modeDescision.addItem(item)
-        self.rangeDescision = QLineEdit("min,max",self)
-
-        hlayout.addWidget(label)
-        hlayout.addWidget(self.modeDescision )
-        hlayout.addWidget(self.rangeDescision)
-
-        layout.addLayout(hlayout)
-
         self.setLayout(layout)
 
     def iterAllItems(self):
         for i in range(self.listWidget.count()):
             item = self.listWidget.item(i)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(not Qt.Checked)
             item.setBackground(generateColorByText(item.text()))
             yield self.listWidget.item(i)
 
@@ -99,12 +89,24 @@ class LabelDialog(QDialog):
         return self.edit.text() if self.exec_() else None
 
     def listItemClick(self, tQListWidgetItem):
-        try:
-            text = tQListWidgetItem.text().trimmed()
-        except AttributeError:
-            # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
-            text = tQListWidgetItem.text().strip()
-        self.edit.setText(text)
+        # try:
+        #     text = tQListWidgetItem.text().trimmed()
+        # except AttributeError:
+        #     # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
+        #     text = tQListWidgetItem.text().strip()
+        # self.edit.setText(text)
+        label = ""
+        for i in range(self.listWidget.count()):
+            item = self.listWidget.item(i)
+            if item.checkState():
+                try:
+                    text = item.text().trimmed()
+                except AttributeError:
+                    # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
+                    text = item.text().strip()
+                    
+                label += text + ","
+        self.edit.setText(label)
 
     def listItemDoubleClick(self, tQListWidgetItem):
         self.listItemClick(tQListWidgetItem)

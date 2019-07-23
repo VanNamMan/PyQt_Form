@@ -1,3 +1,5 @@
+
+#source https://github.com/mfitzp/15-minute-apps/blob/master/camera/camera.py
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -78,6 +80,7 @@ class cameraDialog(QMainWindow):
         self.camera.unlock()
 
     def take_photo(self):
+        print(type(self.viewfinder.grab()))
         timestamp = time.strftime("%d-%b-%Y-%H_%M_%S")
         self.capture.capture(os.path.join(self.save_path, "%s-%04d-%s.jpg" % (
             self.current_camera_name,
@@ -104,3 +107,11 @@ class cameraDialog(QMainWindow):
         """
         err = QErrorMessage(self)
         err.showMessage(s)
+
+# if __name__ == '__main__':
+
+#     app = QApplication(sys.argv)
+#     app.setApplicationName("NSAViewer")
+
+#     window = cameraDialog()
+#     app.exec_()

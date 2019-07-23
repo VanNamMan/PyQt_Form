@@ -106,7 +106,10 @@ class ParamerterDialog(QDialog):
 		  # 2    Legacy + LSTM engines.
 		  # 3    Default, based on what is available.
 
-		for item in ["0    Legacy engine only.","1    Neural nets LSTM engine only.","3    Default, based on what is available."]:
+		for item in ["0    Legacy engine only."
+		,"1    Neural nets LSTM engine only."
+		,"2    Legacy + LSTM engines."
+		,"3    Default, based on what is available."]:
 			self.cbb_oem.addItem(item)
 		for item in ["0    Orientation and script detection (OSD) only."
 					,"1    Automatic page segmentation with OSD."
@@ -121,10 +124,13 @@ class ParamerterDialog(QDialog):
 					,"10    Treat the image as a single character."
 					,"11    Sparse text. Find as much text as possible in no particular order."
 					,"12    Sparse text with OSD."
-					,"13    Raw line. Treat the image as a single text line,bypassing hacks that are Tesseract-specific."]:
+					,"13    Raw line. Treat the image as a single text line"]:#,\nbypassing hacks that are Tesseract-specific.
 			self.cbb_psm.addItem(item)
 		for item in ["eng","chi_sim","jpn","kor","vie"]:
 			self.cbb_language.addItem(item)
+
+		for cbb in [self.cbb_language,self.cbb_oem,self.cbb_psm]:
+			cbb.setToolTip(cbb.currentText())
 
 if __name__ == "__main__":
 	import sys

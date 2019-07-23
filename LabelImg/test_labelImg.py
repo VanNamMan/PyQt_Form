@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 
-from libs.fileWorker import *
+from libs.myQCamera import *
+from libs.myFile import *
 from libs.canvas import *
 from libs.utils import *
 from libs.constants import *
@@ -17,17 +18,21 @@ from libs.colorDialog import ColorDialog
 from libs.zoomWidget import ZoomWidget
 
 from libs.cvLib import *
-# from UI_Convert.paramsCv import paramsCv
-from UI_Convert.cameraDlg import cameraDlg
 from libs.parameterDlg import ParamerterDialog
-# from UI_Convert.output import ouput
 
 import os,time,threading
 from functools import partial
+# multiprocessing on Gui
 from multiprocessing.dummy import Pool
 
 __appname__ = "CopyRight2019 label master."
 __imageFile__ = [".jpg",".png",".bmp",".gif",".PNG"]
+
+fileLabel = "label.txt"
+listLabel = []
+if os.path.exists(fileLabel):
+    with open(fileLabel,"r") as inFile:
+        listLabel = inFile.readline().split(",")
 
 class WindowMixin(object):
 
@@ -49,6 +54,9 @@ class labelMaster(QMainWindow,WindowMixin):
      FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
      def __init__(self):
          QWidget.__init__(self)
+
+         self.cameraDlg = cameraDialog(self)
+
          # self.setFixedSize(800, 600)
          # self.descisionDlg = ouput(self)
          self.setWindowTitle("Label Master")
@@ -66,19 +74,13 @@ class labelMaster(QMainWindow,WindowMixin):
          self.bLoopImplement = True
          self.bAutoImplement = False
          self.bSaveOutput = False
-         self.bUpdate = True
+         self.bShowResult = True
          self.bSelectionChanged = False
          self.pool = Pool(5)
          self.output = []
 
-         self.stringBundle = StringBundle.getBundle()
-         getStr = lambda strId: self.stringBundle.getString(strId)
-
-         fileLabel = "label.txt"
-         listLabel = []
-         if os.path.exists(fileLabel):
-             with open(fileLabel,"r") as inFile:
-                listLabel = inFile.readline().split(",")
+         # self.stringBundle = StringBundle.getBundle()
+         # getStr = lambda strId: self.stringBundle.getString(strId)
 
          self.labelDialog = LabelDialog(listItem=listLabel)
          self.colorDialog = ColorDialog(parent=self)
@@ -107,9 +109,9 @@ class labelMaster(QMainWindow,WindowMixin):
 
          #=======toolBar==========
          openFile = action("Open",self.open
-            ,OPENFILE,"res/open.png","Open image file")
+            ,OPEN_FILE,"res/open.png","Open image file")
          openDir = action("Open Dir",self.openDirDialog
-            ,OPENDIR,"res/openDir.png","Open image folder")
+            ,OPEN_DIR,"res/openDir.png","Open image folder")
          createShape = action("Create rect box",self.createShape
             ,CREATE,"res/draw.png","Start draw rectangle")
          copy = action('copy', self.copySelectedShape
@@ -123,27 +125,30 @@ class labelMaster(QMainWindow,WindowMixin):
          implement = action("Implement",self.implement
             ,IMPLEMENT,"res/event.png","Implement", enabled=False)
          lineColor = action("Line color",lambda:self.boxColor("line")
-            ,LINECOLOR,"res/lineColor.png","Box line color", enabled=True)
+            ,LINE_COLOR,"res/lineColor.png","Box line color", enabled=True)
          textColor = action("Text color",lambda:self.boxColor("text")
-            ,TEXTCOLOR,"res/textColor.png","Box text color", enabled=True)
+            ,TEXT_COLOR,"res/textColor.png","Box text color", enabled=True)
          font = action("Font",self.boxFont
-            ,TEXTFONT,"res/font.png","Box font text", enabled=True)
+            ,TEXT_FONT,"res/font.png","Box font text", enabled=True)
          nextImage = action("Next Image",self.openNextImg
             ,NEXT,"res/next.png","Next image", enabled=True)
          backImage = action("Back Image",self.openPrevImg
             ,BACK,"res/back.png","Back image", enabled=True)
          zoomIn = action('zoomin', partial(self.addZoom, 10)
-            ,ZOOMIN, 'res/zoom-in.png','zoominDetail', enabled=False)
+            ,ZOOM_IN, 'res/zoom-in.png','zoominDetail', enabled=False)
          zoomOut = action('zoomout', partial(self.addZoom, -10)
-            ,ZOOMOUT, 'res/zoom-out.png','zoomoutDetail', enabled=False)
+            ,ZOOM_OUT, 'res/zoom-out.png','zoomoutDetail', enabled=False)
          zoomOrg = action('originalsize', partial(self.setZoom, 100)
-            ,ZOOMORG, 'res/zoom.png','originalsizeDetail', enabled=False)
+            ,ZOOM_ORG, 'res/zoom.png','originalsizeDetail', enabled=False)
          fitWindow = action('fitWin', self.setFitWindow
-            ,FITWINDOW, 'res/fit-window.png','fitWinDetail',checkable=True, enabled=False)
+            ,FIT_WINDOW, 'res/fit-window.png','fitWinDetail',checkable=True, enabled=False)
          fitWidth = action('fitWidth', self.setFitWidth
-            ,FITWIDTH, 'res/fit-width.png','fitWidthDetail',checkable=True, enabled=False)
+            ,FIT_WIDTH, 'res/fit-width.png','fitWidthDetail',checkable=True, enabled=False)
          clearAll = action('clearAll', self.clearList
-            ,CLEARALL, 'res/clear-all.png','Clear all list items',checkable=True, enabled=True)
+            ,CLEAR_ALL, 'res/clear-all.png','Clear all list items',checkable=True, enabled=True)
+
+         showCamera = action('camera', self.showCamera
+            ,SHOW_CAMERA,'res/camera.png','Camera',checkable=True, enabled=True)
 
          actionMenuFile = [openFile,openDir,saveFile]
          addActions(self.menus.file,actionMenuFile)
@@ -279,10 +284,10 @@ class labelMaster(QMainWindow,WindowMixin):
          # self.paramerterWidget.ln_kThresh.textChanged.connect(self.textChanged)
          self.parameterdock.setWidget(self.paramerterWidget)
 
-         self.cameradock = QDockWidget('camera', self)
-         self.cameradock.setObjectName('cameara')
-         self.cameraDlg = cameraDlg(self)
-         self.cameradock.setWidget(self.cameraDlg)
+         # self.cameradock = QDockWidget('camera', self)
+         # self.cameradock.setObjectName('cameara')
+         # self.cameraDlg = cameraDialog(self)
+         # self.cameradock.setWidget(self.cameraDlg)
 
          self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
          self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
@@ -295,31 +300,31 @@ class labelMaster(QMainWindow,WindowMixin):
          self.addDockWidget(Qt.RightDockWidgetArea, self.parameterdock)
          self.parameterdock.setFeatures(self.dockFeatures)
 
-         self.addDockWidget(Qt.RightDockWidgetArea, self.cameradock)
-         self.cameradock.setFeatures(self.dockFeatures)
+         # self.addDockWidget(Qt.RightDockWidgetArea, self.cameradock)
+         # self.cameradock.setFeatures(self.dockFeatures)
 
          toggleDock = self.dock.toggleViewAction()
          toggleDock.setText('boxLabel')
-         toggleDock.setShortcut('Ctrl+Shift+z')
+         toggleDock.setShortcut(TOGGLE_LABEL_LIST)
 
          toggleFileDock = self.filedock.toggleViewAction()
          toggleFileDock.setText('logFile')
-         toggleFileDock.setShortcut('Ctrl+Shift+x')
+         toggleFileDock.setShortcut(TOGGLE_LOG_FILE)
 
          toggleParaDock = self.parameterdock.toggleViewAction()
          toggleParaDock.setText('parameter')
-         toggleParaDock.setShortcut('Ctrl+Shift+v')
+         toggleParaDock.setShortcut(TOGGLE_PARAMETER)
 
-         toggleCamDock = self.cameradock.toggleViewAction()
-         toggleCamDock.setText('camera')
-         toggleCamDock.setShortcut('Ctrl+Shift+c')
+         # toggleCamDock = self.cameradock.toggleViewAction()
+         # toggleCamDock.setText('camera')
+         # toggleCamDock.setShortcut(TOGGLE_SHOW_CAMERA)
 
          # self.dock.hide()
          self.filedock.hide()
          self.parameterdock.hide()
-         self.cameradock.hide()
+         # self.cameradock.hide()
          
-         addActions(self.menus.view,[toggleDock,toggleFileDock,toggleParaDock,toggleCamDock])
+         addActions(self.menus.view,[toggleDock,toggleFileDock,toggleParaDock,showCamera])
 
          # ==============Canvas================
          self.canvas = Canvas(self)
@@ -328,10 +333,6 @@ class labelMaster(QMainWindow,WindowMixin):
          #=================
          qImage = QImage(640,480,QImage.Format_RGBA8888)
          self.canvas.loadPixmap(QPixmap.fromImage(qImage))
-
-         # self.canvas.text = "Hello\nLabel Master"
-         # self.canvas.locText = QRect(50,50,400,100)
-
         
          scroll = QScrollArea()
          scroll.setWidget(self.canvas)
@@ -388,7 +389,49 @@ class labelMaster(QMainWindow,WindowMixin):
         txt = time.strftime("%H:%M:%S ")+str(obj)
         self.fileLogWidget.addItem(txt)
 
-     def getOCR(self,img=None):
+     def shapeProcess(self,shape):
+        #
+        # index = self.canvas.shapes.index(shape)
+        index,labels,rect = self.formatShape(shape)
+        # result
+        shape.result["in"]["id"] = index
+        shape.result["in"]["label"] = labels
+        shape.result["in"]["rect"] = rect
+
+        try:
+            roi = self.qImage.copy(rect)
+            cvRoi = qImageToCvMat(roi)
+        except:
+            cvRoi = None
+            return
+
+        lbs = labels.split(",")[:-1]
+
+        for label in lbs:
+            if label == OCR:
+                text = self.getOCR(shape,label,cvRoi)
+            elif label == BARCODE:
+                codes = self.getBarCode(shape,label,cvRoi)
+            # elif label == CROP:
+                # self.saveImage(cvRoi)
+        
+        # update text , barcode on canvas
+        if self.bShowResult and shape.result:
+            w,h = rect.width(),rect.height()
+            txt = ""
+            for key in lbs:
+                txt += str(shape.result["out"][key])+"\n"
+
+            self.canvas.text[index] = txt
+            self.canvas.locText[index] = rect.translated(QPoint(0,-len(lbs)*h)) 
+            self.canvas.update()
+
+        if shape.result :
+            return shape.result
+        else:
+            return None
+
+     def getOCR(self,shape,key,img=None):
 
         lang = self.paramerterWidget.cbb_language.currentText()
         oem = self.paramerterWidget.cbb_oem.currentIndex()
@@ -399,68 +442,20 @@ class labelMaster(QMainWindow,WindowMixin):
 
         txt = get_text(img,lang,config=config)
 
-
-        # shape.output = struct(id=index,rect=rect,label=label,text=txt,barcode=None)
-        # lstText= txt.split("\n")
-        # nchars = [len(a) for a in lstText]
-        # n = max(nchars) + 1
-   
-        # if bLog:
-        #     self.logFile(txt)
-        # elif bUpdate:
-        #     w,h = rect.width(),rect.height()
-
-        #     if lang == "eng":
-        #         self.canvas.text[index] = txt
-        #     else:
-        #         self.canvas.text[index] = txt.encode("utf-8").decode("utf-8")
-
-        #     # if label == OCR:
-        #     #     self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
-        #     # elif label == BARCODE:
-        #     #     self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
-        #     # rect.setWidth(40*(n))
-        #     # rect.setHeight(len(lstText)*h)
-        #     # self.canvas.fontText = QFont("Arial",20)
-        #     self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
-            
-        #     self.canvas.update()
+        if shape:
+            shape.result["out"][key] = txt
 
         return txt
 
-     def getBarCode(self,img=None):
+     def getBarCode(self,shape,key,img=None):
 
         if img is None:
             return
 
         codes = getBarcode(img)
-        # shape.output = struct(id=index,rect=rect,label=label,text=None,barcode=codes)
-
-        # if codes:
-        #     for code,dtype in codes:
-        #         if bLog:
-        #             self.logFile("Code : %s , type : %s"%(code,dtype))
-        #         if bUpdate:
-        #             w,h = rect.width(),rect.height()
-        #             txt = ""
-        #             n = 1
-        #             for code,dtype in codes:
-        #                 txt += code+" , "+dtype+"\n"
-        #                 # n = max(n,len(code))
-        #             self.canvas.text[index] = txt
-        #             # if label == OCR:
-        #             #     self.canvas.drawingTextColor[index] = OCR_TEXTCOLOR
-        #             # elif label == BARCODE:
-        #             #     self.canvas.drawingTextColor[index] = BARCODE_TEXTCOLOR
-        #             # rect.setWidth(40*(n))
-        #             # self.canvas.fontText = QFont("Arial",20)
-        #             self.canvas.locText[index] = rect
-        #             self.canvas.update()
-        # else:
-        #     if bLog:
-        #         self.logFile("Code : ")
-        #     if bUpdate:
-        #         self.canvas.update()
+        
+        if shape:
+            shape.result["out"][key] = codes
     
         return codes
 
@@ -517,57 +512,6 @@ class labelMaster(QMainWindow,WindowMixin):
 
      def deleteSelectedShape(self):
         self.remLabel(self.canvas.deleteSelected())
-     
-     def shapeProcess(self,shape):
-
-        # index = self.canvas.shapes.index(shape)
-        index,labels,rect = self.formatShape(shape)
-
-        try:
-            roi = self.qImage.copy(rect)
-            cvRoi = qImageToCvMat(roi)
-        except:
-            cvRoi = None
-            return
-
-        lbs = labels.split(",")[:-1]
-        text = ""
-        codes=[]
-        for label in lbs:
-            if label == OCR:
-                text = self.getOCR(cvRoi)
-                # self.output.append()
-            elif label == BARCODE:
-                codes = self.getBarCode(cvRoi)
-        # elif label == CROP:
-        #     self.saveImage(cvRoi)
-        shape.output = struct(id=index
-                            ,rect=rect
-                            ,label=labels
-                            ,text=text
-                            ,barcode=codes)
-
-        # update text , barcode on canvas
-        if self.bUpdate:
-            w,h = rect.width(),rect.height()
-            self.canvas.text[index] = text + "\n" +str(codes)
-            # if lang == "eng":
-            #     self.canvas.text[index] = txt
-            # else:
-                # self.canvas.text[index] = txt.encode("utf-8").decode("utf-8")
-            self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
-            self.canvas.update()
-
-        if shape.output is not None:
-            r = "%d,%d,%d,%d"%(rect.x(),rect.y(),rect.width(),rect.height())
-            strCode = ""
-            if isinstance(codes,list):
-                for code,_ in codes:
-                    strCode+=code+","
-            # index , label , rect , text OCR , barcode
-            return [index,labels,r,text,strCode] 
-        else:
-            return None
 
      def implement(self):
         if self.qImage is None:
@@ -579,15 +523,12 @@ class labelMaster(QMainWindow,WindowMixin):
         # self.canvas.drawingTextColor = len(shapes)*[None]
         # print(shape.points)
         t0 = time.time()
-        self.logFile(np.array(self.pool.map(self.shapeProcess,shapes)))
+        self.logFile(self.pool.map(self.shapeProcess,shapes))
         dt = time.time() - t0
         self.logFile("tactime : %s"%dt)
 
         if self.bSaveOutput:
-            save_to_csv("output/output.csv"
-                ,np.array(self.pool.map(self.shapeProcess,shapes))
-                ,columns = ["id","label","rect","text","barcode"])
-            
+            pass
     
      def open(self):
         filters = "All File(*.*);;JPG iamge (*.jpg)"
@@ -737,6 +678,7 @@ class labelMaster(QMainWindow,WindowMixin):
         thread = threading.Thread(target=target,args=args)
         thread.start()
 
+     # run thread auto implement
      def loopImplement(self):
         while self.bLoopImplement:
             if self.bAutoImplement:
@@ -757,7 +699,7 @@ class labelMaster(QMainWindow,WindowMixin):
      def stateChanged(self,iState):
             self.bAutoImplement = self.autoImplement.isChecked()
             self.bSaveOutput = self.saveOutput.isChecked()
-            self.bUpdate = self.updateOuput.isChecked()
+            self.bShowResult = self.updateOuput.isChecked()
 
             self.canvas.update()
 
@@ -993,6 +935,9 @@ class labelMaster(QMainWindow,WindowMixin):
         #     self.fileLogWidget.takeItem(i)
         self.fileLogWidget.clear()
 
+     def showCamera(self):
+        self.cameraDlg.show()
+
      def resetState(self):
         # self.canvas.deleteSelected()
         # self.labelList.clear()
@@ -1020,7 +965,7 @@ class labelMaster(QMainWindow,WindowMixin):
      def closeEvent(self, event):
         print("Close main")
         self.bLoopImplement = False
-        self.cameraDlg.stopAllThread()
+        # self.cameraDlg.stopAllThread()
 
 def main():
      import sys

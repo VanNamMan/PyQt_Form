@@ -10,7 +10,7 @@ except ImportError:
     from PyQt4.QtCore import *
 
 from libs.utils import distance,struct
-import sys
+import sys,os
 
 DEFAULT_LINE_COLOR = QColor(0, 255, 0, 128)
 DEFAULT_FILL_COLOR = QColor(255, 0, 0, 128)
@@ -20,6 +20,11 @@ DEFAULT_VERTEX_FILL_COLOR = QColor(0, 255, 0, 255)
 DEFAULT_HVERTEX_FILL_COLOR = QColor(255, 0, 0)
 MIN_Y_LABEL = 10
 
+fileLabel = "label.txt"
+listLabel = []
+if os.path.exists(fileLabel):
+     with open(fileLabel,"r") as inFile:
+        listLabel = inFile.readline().split(",")
 
 class Shape(object):
     P_SQUARE, P_ROUND = range(2)
@@ -41,7 +46,9 @@ class Shape(object):
     def __init__(self, label=None, line_color=None, difficult=False, paintLabel=False):
 
         #byMe , ouput of shape
-        self.output = None
+        self.result = { "in":dict.fromkeys(("id","label","rect"))
+                        ,"out":dict.fromkeys(listLabel)}
+        # print(self.result)
         #==============
         self.label = label
         self.points = []

@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 
+from libs.shape import *
 from libs.myQCamera import *
 from libs.myFile import *
 from libs.canvas import *
@@ -33,6 +34,8 @@ listLabel = []
 if os.path.exists(fileLabel):
     with open(fileLabel,"r") as inFile:
         listLabel = inFile.readline().split(",")
+
+
 
 class WindowMixin(object):
 
@@ -76,6 +79,8 @@ class labelMaster(QMainWindow,WindowMixin):
          self.bSelectionChanged = False
          self.pool = Pool(5)
          self.output = []
+         self.bEndThreads = []
+         self.t0 = 0
 
          # self.stringBundle = StringBundle.getBundle()
          # getStr = lambda strId: self.stringBundle.getString(strId)
@@ -87,7 +92,7 @@ class labelMaster(QMainWindow,WindowMixin):
 
          self.itemsToShapes = {}
          self.shapesToItems = {}
-         self._noSelectionSlot = False
+         self._noSelectionSlot = []
          self._beginner = True
 
 
@@ -326,6 +331,8 @@ class labelMaster(QMainWindow,WindowMixin):
 
          # ==============Canvas================
          self.canvas = Canvas(self)
+         # load params
+         self.loadParams()
          # contextMenu
          addActions(self.canvas.menus[0],self.actions.beginner)
          #=================
@@ -389,8 +396,10 @@ class labelMaster(QMainWindow,WindowMixin):
 
      def shapeProcess(self,shape):
         #
+        print("prosess : ",shape)
         # index = self.canvas.shapes.index(shape)
         index,labels,rect = self.formatShape(shape)
+        self.bEndThreads[index] = False
         # result
         shape.result["in"]["id"] = index
         shape.result["in"]["label"] = labels
@@ -421,10 +430,15 @@ class labelMaster(QMainWindow,WindowMixin):
                 txt += str(shape.result["out"][key])+"\n"
 
             self.canvas.text[index] = txt
-            self.canvas.locText[index] = rect.translated(QPoint(0,-len(lbs)*h)) 
+            rect.setHeight(len(lbs)*rect.height())
+            self.canvas.locText[index] = rect.translated(QPoint(0,-h)) 
             self.canvas.update()
 
+        self.bEndThreads[index] = True
+        # if self.bEndThreads == len(self.canvas.shapes)*[True]:
+        #     self.logFile("dt : %.3f"%(time.time() - self.t0))
         if shape.result :
+            print(shape.result)
             return shape.result
         else:
             return None
@@ -475,6 +489,7 @@ class labelMaster(QMainWindow,WindowMixin):
             # print('rm empty label')
             return
         item = self.shapesToItems[shape]
+        index = self.canvas.shapes.index(item)
         self.labelList.takeItem(self.labelList.row(item))
         self.canvas.text = []
         self.canvas.locText = []
@@ -486,6 +501,8 @@ class labelMaster(QMainWindow,WindowMixin):
 
         del self.shapesToItems[shape]
         del self.itemsToShapes[item]
+
+        del self.bEndThreads[index]
         
      def boxFont(self):
         font, ok = QFontDialog.getFont()
@@ -520,10 +537,16 @@ class labelMaster(QMainWindow,WindowMixin):
         self.canvas.locText = len(shapes)*[None]
         # self.canvas.drawingTextColor = len(shapes)*[None]
         # print(shape.points)
-        t0 = time.time()
-        self.logFile(self.pool.map(self.shapeProcess,shapes))
-        dt = time.time() - t0
-        self.logFile("tactime : %s"%dt)
+        self.t0 = time.time()
+        self.pool.map(self.shapeProcess,shapes)
+        self.logFile("dt : %.3f"%(time.time()-self.t0))
+        # multi thread
+        # targets = len(shapes)*[self.shapeProcess]
+        # args = [(shape,) for shape in shapes]
+        # self.myMultiThread(targets = targets, args=args)
+        #========
+        # dt = time.time() - t0
+        # self.logFile("tactime : %s"%dt)
 
         if self.bSaveOutput:
             pass
@@ -647,12 +670,37 @@ class labelMaster(QMainWindow,WindowMixin):
             if filename:
                 self.loadFile(filename)
 
+     def loadParams(self):
+        params = load_from_json("params/param.json")
+        shapes = params["shapes"]
+        for sh in shapes:
+            index,label,r = sh["id"],sh["label"],sh["rect"]
+            generate_color = generateColorByText(label)
+            shape = Shape(label = label,line_color = generate_color,paintLabel=True)
+            # shape.fill = True
+            shape.fill_color = generate_color
+            shape.points = 4*[QPoint()]
+            shape.points[0] = QPointF(r[0],r[1])
+            shape.points[1] = QPointF(r[0]+r[2],r[1])
+            shape.points[2] = QPointF(r[0]+r[2],r[1]+r[3])
+            shape.points[3] = QPointF(r[0],r[1]+r[3])
+            shape.close()
+            self.canvas.shapes.append(shape)
+            self.addLabel(shape)
+
+
+
      def save(self):
+        a = [self.formatShape(shape) for shape in self.canvas.shapes]
+        b = [{"id":i,"label":lb,"rect":[r.x(),r.y(),r.width(),r.height()]} for i,lb,r in a]
+
+
         raw_data = {
             "k-thresh" : self.paramerterWidget.ln_threshold.text()
-            ,"bNormal" : self.paramerterWidget.ln_blockSize.text()
+            ,"block size" : self.paramerterWidget.ln_blockSize.text()
+            ,"shapes" : b
         }
-        save_to_csv("params/param.json",raw_data)
+        save_to_json("params/param.json",raw_data)
         pass
 
      def setDirty(self):
@@ -676,12 +724,17 @@ class labelMaster(QMainWindow,WindowMixin):
         thread = threading.Thread(target=target,args=args)
         thread.start()
 
+     def myMultiThread(self,targets,args):
+        for tar,arg in zip(targets,args):
+            thread = threading.Thread(target=tar,args=arg)
+            thread.start()
+
      # run thread auto implement
      def loopImplement(self):
         while self.bLoopImplement:
-            if self.bAutoImplement:
+            if self.bAutoImplement and self.bEndThreads==len(self.canvas.shapes)*[True]:
                 self.implement()
-            time.sleep(0.02)
+            time.sleep(0.2)
 
      # redraw rect
      # ======signal slot================
@@ -696,6 +749,8 @@ class labelMaster(QMainWindow,WindowMixin):
      # ================add and edit Label===========================
      def stateChanged(self,iState):
             self.bAutoImplement = self.autoImplement.isChecked()
+            if self.bAutoImplement :
+                self.bEndThreads = len(self.canvas.shapes)*[True]
             self.bSaveOutput = self.saveOutput.isChecked()
             self.bShowResult = self.updateOuput.isChecked()
 
@@ -788,6 +843,7 @@ class labelMaster(QMainWindow,WindowMixin):
             self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
 
      def addLabel(self,shape):
+         shape.paintLabel = True
          index,label,rect = self.formatShape(shape)
          item = HashableQListWidgetItem(label)
          item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
@@ -796,6 +852,8 @@ class labelMaster(QMainWindow,WindowMixin):
          self.itemsToShapes[item] = shape
          self.shapesToItems[shape] = item
          self.labelList.addItem(item)
+
+         self.bEndThreads.append(False)
      # =================signal Canvas==========================
      def newShape(self):
         #Pop-up and give focus to the label editor. 

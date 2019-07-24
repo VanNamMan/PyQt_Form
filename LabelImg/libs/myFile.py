@@ -18,8 +18,12 @@ def save_to_csv(filename,data,columns):
     except:
         return False
 
-def save_to_csv(filename,raw_data):
-    with open(filename,"w") as infile:
+def load_from_json(filename):
+    with open(filename,"r") as infile:
+        return json.load(infile) 
+
+def save_to_json(filename,raw_data):
+    with open(filename,"w") as outfile:
         json.dump(raw_data,infile)
 
 # a = np.array([[0,None,"[1]"],[0,None,"[1]"]])

@@ -14,8 +14,8 @@ import sys,os
 
 DEFAULT_LINE_COLOR = QColor(0, 255, 0, 128)
 DEFAULT_FILL_COLOR = QColor(255, 0, 0, 128)
-DEFAULT_SELECT_LINE_COLOR = QColor(255, 255, 255)
-DEFAULT_SELECT_FILL_COLOR = QColor(0, 128, 255, 155)
+DEFAULT_SELECT_LINE_COLOR = QColor(0, 0, 0)
+DEFAULT_SELECT_FILL_COLOR = QColor(128, 128, 255, 100)
 DEFAULT_VERTEX_FILL_COLOR = QColor(0, 255, 0, 255)
 DEFAULT_HVERTEX_FILL_COLOR = QColor(255, 0, 0)
 MIN_Y_LABEL = 10
@@ -157,6 +157,9 @@ class Shape(object):
             self.vertex_fill_color = Shape.vertex_fill_color
         if shape == self.P_SQUARE:
             path.addRect(point.x() - d / 2, point.y() - d / 2, d, d)
+            # path.addEllipse(point, d, d)
+            # path.addPolygon(QPolygonF([point-QPointF(d/2,0),point+QPointF(d/2,0)]))
+            # path.addPolygon(QPolygonF([point-QPointF(0,d/2),point+QPointF(0,d/2)]))
         elif shape == self.P_ROUND:
             path.addEllipse(point, d / 2.0, d / 2.0)
         else:

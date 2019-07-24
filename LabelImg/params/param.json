@@ -1,1 +1,2 @@
-{"k-thresh": "100", "bNormal": "11"}
+{"k-thresh": "100", "block size": "11"
+	, "shapes": [{"id": 0, "label": "OCR,", "rect": [203, 100, 101, 17]}, {"id": 1, "label": "OCR,", "rect": [266, 270, 161, 22]}, {"id": 2, "label": "OCR,", "rect": [234, 168, 101, 17]}]}

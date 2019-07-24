@@ -55,8 +55,6 @@ class labelMaster(QMainWindow,WindowMixin):
      def __init__(self):
          QWidget.__init__(self)
 
-         self.cameraDlg = cameraDialog(self)
-
          # self.setFixedSize(800, 600)
          # self.descisionDlg = ouput(self)
          self.setWindowTitle("Label Master")
@@ -936,6 +934,7 @@ class labelMaster(QMainWindow,WindowMixin):
         self.fileLogWidget.clear()
 
      def showCamera(self):
+        self.cameraDlg = cameraDialog(self)
         self.cameraDlg.show()
 
      def resetState(self):

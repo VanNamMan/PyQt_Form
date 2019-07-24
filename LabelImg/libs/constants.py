@@ -41,10 +41,12 @@ FIT_WINDOW = "Ctrl+f"
 LINE_COLOR = "Shift+c"
 TEXT_COLOR = "Shift+v"
 TEXT_FONT = "Shift+f"
+SHOW_CAMERA = "Shift+d"
 
 OPEN_DIR = "Ctrl+Shift+o"
 FIT_WIDTH = "Ctrl+Shift+f"
 CLEAR_ALL = "Ctrl+Shift+q"
+
 
 IMPLEMENT = "a"
 CREATE = "r"
@@ -53,7 +55,7 @@ TOGGLE_LABEL_LIST = "Ctrl+Shift+z"
 TOGGLE_LOG_FILE = "Ctrl+Shift+x"
 TOGGLE_PARAMETER = "Ctrl+Shift+v"
 # TOGGLE_LOG_FILE = "Ctrl+Shift+X"
-SHOW_CAMERA = "Crtl+Shift+c"
+
 #======ShapeColor=======
 OCR_TEXTCOLOR = QColor(255,0,0)
 BARCODE_TEXTCOLOR = QColor(255,255,0)

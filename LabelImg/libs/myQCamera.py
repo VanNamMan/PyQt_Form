@@ -7,12 +7,18 @@ from PyQt5.QtPrintSupport import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 
-from libs.utils import newAction,addActions
+from libs.utils import newAction,addActions,struct
 
 import os
 import sys
 import time
 from functools import partial
+
+fileLabel = "save_path.txt"
+listLabel = []
+if os.path.exists(fileLabel):
+    with open(fileLabel,"r") as inFile:
+        save_path = inFile.readline()
 
 class cameraDialog(QMainWindow):
 
@@ -27,14 +33,13 @@ class cameraDialog(QMainWindow):
         self.setStatusBar(self.status)
 
 
-        self.save_path = ""
+        self.save_path = save_path
 
         self.viewfinder = QCameraViewfinder()
         self.viewfinder.show()
         self.setCentralWidget(self.viewfinder)
 
-        # Set the default camera.
-        self.select_camera(0)
+        self.encoderSettings = QImageEncoderSettings()
 
         # Setup tools
         camera_toolbar = QToolBar("Camera")
@@ -56,21 +61,34 @@ class cameraDialog(QMainWindow):
         stop_action = action("Stop Camera",self.stop_camera,"","res/stop.png","Stop Camera")
         photo_action = action("Take Photo",self.take_photo,"","res/capture.png","Take Photo")
         change_folder_action = action("Save Folder",self.change_folder,"","res/openDir.png","Change save folder")
+
+        self.actions = struct(start_action=start_action
+                            ,stop_action=stop_action
+                            ,photo_action=photo_action
+                            ,change_folder_action=change_folder_action)
         
         addActions(camera_toolbar,[start_action,stop_action,photo_action,change_folder_action])
 
-        self.setWindowTitle("Camera Dialog")
+        self.setWindowTitle("Camera %s"%self.save_path)
         # self.show()
+        # Set the default camera.
+        self.select_camera(0)
 
     def select_camera(self, i):
         self.camera = QCamera(self.available_cameras[i])
+
         # self.camera = QCamera("Integrated Webcam")
         self.camera.setViewfinder(self.viewfinder)
         self.camera.setCaptureMode(QCamera.CaptureStillImage)
         self.camera.error.connect(lambda: self.alert(self.camera.errorString()))
-        self.camera.start()
+
+        # self.encoderSettings.setCodec("image/jpg");
+        # self.encoderSettings.setResolution(1280, 720);
+        
+        self.start_camera()
 
         self.capture = QCameraImageCapture(self.camera)
+        # self.capture.setEncodingSettings(self.encoderSettings)
         self.capture.error.connect(lambda i, e, s: self.alert(s))
         self.capture.imageCaptured.connect(lambda d, i: self.status.showMessage("Image %04d captured" % self.save_seq))
 
@@ -78,9 +96,10 @@ class cameraDialog(QMainWindow):
         self.save_seq = 0
 
         self.camera.unlock()
+        # self.show()
 
     def take_photo(self):
-        print(type(self.viewfinder.grab()))
+        # print(type(self.viewfinder.grab()))
         timestamp = time.strftime("%d-%b-%Y-%H_%M_%S")
         self.capture.capture(os.path.join(self.save_path, "%s-%04d-%s.jpg" % (
             self.current_camera_name,
@@ -91,9 +110,18 @@ class cameraDialog(QMainWindow):
 
     def start_camera(self):
         self.camera.start()
+        if self.camera.state() == QCamera.ActiveState:
+        # print(self.camera.errorString())
+            self.actions.start_action.setEnabled(False)
+            self.actions.stop_action.setEnabled(True)
+        else:
+            self.actions.start_action.setEnabled(True)
+            self.actions.stop_action.setEnabled(False)
 
     def stop_camera(self):
         self.camera.stop()
+        self.actions.start_action.setEnabled(True)
+        self.actions.stop_action.setEnabled(False)
 
     def change_folder(self):
         path = QFileDialog.getExistingDirectory(self, "Snapshot save location", "")
@@ -105,8 +133,15 @@ class cameraDialog(QMainWindow):
         """
         Handle errors coming from QCamera dn QCameraImageCapture by displaying alerts.
         """
+        # self.actions.start_action.setEnabled(True)
+        # self.actions.stop_action.setEnabled(False)
         err = QErrorMessage(self)
         err.showMessage(s)
+
+
+    def closeEvent(self, event):
+        print("Close camera")
+        self.stop_camera()
 
 # if __name__ == '__main__':
 

@@ -57,7 +57,7 @@ class cameraDialog(QMainWindow):
         camera_toolbar.addWidget(camera_selector)
 
         action = partial(newAction,self)
-        start_action = action("Start Camera",self.start_camera,"","res/camera.png","Start Camera")
+        start_action = action("Start Camera",self.start_camera,"","res/camera2.png","Start Camera")
         stop_action = action("Stop Camera",self.stop_camera,"","res/stop.png","Stop Camera")
         photo_action = action("Take Photo",self.take_photo,"","res/capture.png","Take Photo")
         change_folder_action = action("Save Folder",self.change_folder,"","res/openDir.png","Change save folder")

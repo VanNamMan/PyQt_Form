@@ -24,7 +24,7 @@ def load_from_json(filename):
 
 def save_to_json(filename,raw_data):
     with open(filename,"w") as outfile:
-        json.dump(raw_data,infile)
+        json.dump(raw_data,outfile)
 
 # a = np.array([[0,None,"[1]"],[0,None,"[1]"]])
 # cols = ["i","x","y"]

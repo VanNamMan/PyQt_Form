@@ -25,7 +25,7 @@ class cameraDlg(QDialog):
         self.myThread(target=self.loopCamera)
 
         self.ui.but_start.clicked.connect(self.start)
-        self.ui.but_start.setIcon(QIcon("res/camera2.png"))
+        self.ui.but_start.setIcon(QIcon("res/camera.png"))
         self.ui.but_stop.clicked.connect(self.stop)
         self.ui.but_stop.setIcon(QIcon("res/stop.png"))
         self.ui.but_capture.clicked.connect(self.capture)

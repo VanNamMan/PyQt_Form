@@ -151,7 +151,7 @@ class labelMaster(QMainWindow,WindowMixin):
             ,CLEAR_ALL, 'res/clear-all.png','Clear all list items',checkable=True, enabled=True)
 
          showCamera = action('camera', self.showCamera
-            ,SHOW_CAMERA,'res/camera.png','Camera',checkable=True, enabled=True)
+            ,SHOW_CAMERA,'res/camera2.png','Camera',checkable=True, enabled=True)
 
          actionMenuFile = [openFile,openDir,saveFile]
          addActions(self.menus.file,actionMenuFile)
@@ -671,22 +671,25 @@ class labelMaster(QMainWindow,WindowMixin):
                 self.loadFile(filename)
 
      def loadParams(self):
-        params = load_from_json("params/param.json")
-        shapes = params["shapes"]
-        for sh in shapes:
-            index,label,r = sh["id"],sh["label"],sh["rect"]
-            generate_color = generateColorByText(label)
-            shape = Shape(label = label,line_color = generate_color,paintLabel=True)
-            # shape.fill = True
-            shape.fill_color = generate_color
-            shape.points = 4*[QPoint()]
-            shape.points[0] = QPointF(r[0],r[1])
-            shape.points[1] = QPointF(r[0]+r[2],r[1])
-            shape.points[2] = QPointF(r[0]+r[2],r[1]+r[3])
-            shape.points[3] = QPointF(r[0],r[1]+r[3])
-            shape.close()
-            self.canvas.shapes.append(shape)
-            self.addLabel(shape)
+        try:
+            params = load_from_json("params/param.json")
+            shapes = params["shapes"]
+            for sh in shapes:
+                index,label,r = sh["id"],sh["label"],sh["rect"]
+                generate_color = generateColorByText(label)
+                shape = Shape(label = label,line_color = generate_color,paintLabel=True)
+                # shape.fill = True
+                shape.fill_color = generate_color
+                shape.points = 4*[QPoint()]
+                shape.points[0] = QPointF(r[0],r[1])
+                shape.points[1] = QPointF(r[0]+r[2],r[1])
+                shape.points[2] = QPointF(r[0]+r[2],r[1]+r[3])
+                shape.points[3] = QPointF(r[0],r[1]+r[3])
+                shape.close()
+                self.canvas.shapes.append(shape)
+                self.addLabel(shape)
+        except:
+            pass
 
 
 

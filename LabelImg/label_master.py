@@ -118,7 +118,7 @@ class labelMaster(QMainWindow,WindowMixin):
          createShape = action("Create rect box",self.createShape
             ,CREATE,"res/draw.png","Start draw rectangle")
          createPolygon = action("Create polygon",self.createPolygon
-            ,CREATE,"res/polygon.png","Start draw polygon")
+            ,POLYGON,"res/polygon.png","Start draw polygon")
          copy = action('copy', self.copySelectedShape
             ,COPY,'res/copy.png','dupBoxDetail',enabled=False)
          saveFile = action("Save",self.save

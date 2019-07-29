@@ -10,11 +10,13 @@ except ImportError:
 #from PyQt4.QtOpenGL import *
 
 from libs.shape import Shape
+from libs.polygon import Polygon
 from libs.utils import distance
 
 CURSOR_DEFAULT = Qt.ArrowCursor
 CURSOR_POINT = Qt.PointingHandCursor
 CURSOR_DRAW = Qt.CrossCursor
+CURSOR_DRAW_POLYGON = Qt.SizeAllCursor
 CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
 
@@ -73,9 +75,10 @@ class Canvas(QWidget):
         self.drawingTextColor = Qt.red
         self.fontText = QFont("Arial",20)
         # self.fontText.setItalic(True)
-        self.polyStart = QPointF()
-        self.polyEnd = QPointF()
-        self.polyPoints = []
+        self.polyPrev = QPointF()
+        self.polyNext = QPointF()
+        self.polygons = []
+        self.currentPolygon = None
         
         #===byMe==========
 
@@ -135,10 +138,23 @@ class Canvas(QWidget):
 
         #byMe
         if self.drawPolygon():
-            self.polyEnd = pos
+            self.overrideCursor(CURSOR_DRAW_POLYGON)
+            self.polyNext = pos
+            if self.currentPolygon:
+                if self.outOfPixmap(pos):
+                    # Don't allow the user to draw outside the pixmap.
+                    # Project the point to the pixmap's edges.
+                    # pos = self.intersectionPoint(self.currentPolygon[-1], pos)
+                    pass
+                elif len(self.currentPolygon) > 1 and self.closeEnough(pos, self.currentPolygon[0]):
+                    self.currentPolygon.highlightVertex(0, Shape.NEAR_VERTEX)
+
+                self.currentPolygon.highlightClear()
+
             self.repaint()
+            return
         #
-        # Polygon drawing.
+        # rect drawing.
         if self.drawing():
             self.overrideCursor(CURSOR_DRAW)
             if self.current:
@@ -203,6 +219,23 @@ class Canvas(QWidget):
         # - Highlight vertex
         # Update shape/vertex fill and tooltip value accordingly.
         self.setToolTip("Image")
+
+        for polygon in self.polygons:
+            # Look for a nearby vertex to highlight. If that fails,
+            # check if we happen to be inside a shape.
+            index = polygon.nearestVertex(pos, self.epsilon)
+            if index is not None:
+                # if len
+                polygon.highlightVertex(index, polygon.MOVE_VERTEX)
+                self.overrideCursor(CURSOR_POINT)
+                self.setToolTip("Click & drag to move point")
+                self.setStatusTip(self.toolTip())
+                self.update()
+            else:
+                polygon.highlightClear()
+                break
+
+
         for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
             # Look for a nearby vertex to highlight. If that fails,
             # check if we happen to be inside a shape.
@@ -241,7 +274,7 @@ class Canvas(QWidget):
             # byme
             if self.drawPolygon():
                 self.handleDrawingPolygon(pos,self.epsilon)
-            #
+
             if self.drawing():
                 self.handleDrawing(pos)
             else:
@@ -296,12 +329,25 @@ class Canvas(QWidget):
 
     #====byme
     def handleDrawingPolygon(self,pos,epsilon=1):
-        # self.polyStart = pos
-        if len(self.polyPoints) > 0 and distance(pos-self.polyPoints[0]) < epsilon:
-            self.mode = self.EDIT
-            # self.polyPoints.remove(self.polyPoints[-1])
+        self.polyPrev = pos
+        if self.currentPolygon is None :
+            self.currentPolygon = Polygon()
+            self.currentPolygon.addPoint(pos)
+            # self.currentPolygon.highlightVertex(0,self.currentPolygon.MOVE_VERTEX)
         else:
-            self.polyPoints.append(pos)
+            self.currentPolygon.addPoint(pos)
+            if self.currentPolygon.reachMaxPoints(epsilon):
+                self.currentPolygon.popPoint()
+                self.currentPolygon._closed = True
+                self.polygons.append(self.currentPolygon)
+                # for i in range(len(self.currentPolygon)):
+                #     self.currentPolygon.highlightVertex(i,self.currentPolygon.MOVE_VERTEX)
+                self.currentPolygon = None
+                self.mode = self.EDIT
+                
+                   
+            # self.polyPoints.append(pos)
+        # self.update()
         pass
     #===========
     def handleDrawing(self, pos):
@@ -508,30 +554,24 @@ class Canvas(QWidget):
                 else:
                     p.drawText(loc,Qt.AlignLeft,txt)
 
-        #paint polygon
+        #paint polygons
+        for polygon in self.polygons:
+            # if (polygon.selected or not self._hideBackround) and self.isVisible(polygon):
+            polygon.fill = True
+            polygon.paint(p)
+        if self.currentPolygon:
+            self.currentPolygon.paint(p)
 
-        p.setPen(self.drawingRectColor)
-
-        if len(self.polyPoints) > 0:
-            
-            for i in range(len(self.polyPoints)-1):
-                brush = QBrush(Qt.BDiagPattern)
-                p.setBrush(brush)
-                p.drawLine(self.polyPoints[i],self.polyPoints[i+1])
-
-            if self.mode == self.POLYGON:
-                # brush = QBrush(Qt.BDiagPattern)
-                # p.setBrush(brush)
-                p.drawLine(self.polyPoints[-1],self.polyEnd)
-
-            if self.mode != self.POLYGON:
-                p.drawLine(self.polyPoints[-1],self.polyPoints[0])
-
-
-        for i in range(len(self.polyPoints)):
-                brush = QBrush(Qt.red)
-                p.setBrush(brush)
-                p.drawEllipse(self.polyPoints[i],5,5)
+        # paint polygon
+        if self.currentPolygon is not None :
+            p.setPen(self.drawingRectColor)
+            p.drawLine(self.polyPrev,self.polyNext)
+        #     p.drawEllipse(self.polyNext,self.currentPolygon.point_size/2,self.currentPolygon.point_size/2)
+        #     # p.setBrush(Qt.BDiagPattern)
+        #     # points = self.currentPolygon.points
+        #     # p.drawPolygon(QPolygonF(points))
+        #     # p.setPen(Qt.black)
+        
 
         #=============
         # Paint rect

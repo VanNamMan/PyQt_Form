@@ -50,6 +50,7 @@ CLEAR_ALL = "Ctrl+Shift+q"
 
 IMPLEMENT = "a"
 CREATE = "r"
+POLYGON = "p"
 
 TOGGLE_LABEL_LIST = "Ctrl+Shift+z"
 TOGGLE_LOG_FILE = "Ctrl+Shift+x"

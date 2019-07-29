@@ -29,7 +29,11 @@ class Canvas(QWidget):
     shapeMoved = pyqtSignal()
     drawingPolygon = pyqtSignal(bool)
 
-    CREATE, EDIT = list(range(2))
+    # CREATE, EDIT = list(range(2))
+
+    #byMe
+    CREATE, EDIT ,POLYGON = list(range(3))
+    #
 
     epsilon = 11.0
 
@@ -69,6 +73,9 @@ class Canvas(QWidget):
         self.drawingTextColor = Qt.red
         self.fontText = QFont("Arial",20)
         # self.fontText.setItalic(True)
+        self.polyStart = QPointF()
+        self.polyEnd = QPointF()
+        self.polyPoints = []
         
         #===byMe==========
 
@@ -93,6 +100,12 @@ class Canvas(QWidget):
 
     def editing(self):
         return self.mode == self.EDIT
+
+    def drawPolygon(self):
+        return self.mode == self.POLYGON
+
+    def setDrawPolygon(self):
+        self.mode = self.POLYGON
 
     def setEditing(self, value=True):
         self.mode = self.EDIT if value else self.CREATE
@@ -120,6 +133,11 @@ class Canvas(QWidget):
             self.parent().window().labelCoordinates.setText(
                 'X: %d; Y: %d' % (pos.x(), pos.y()))
 
+        #byMe
+        if self.drawPolygon():
+            self.polyEnd = pos
+            self.repaint()
+        #
         # Polygon drawing.
         if self.drawing():
             self.overrideCursor(CURSOR_DRAW)
@@ -220,6 +238,10 @@ class Canvas(QWidget):
         pos = self.transformPos(ev.pos())
 
         if ev.button() == Qt.LeftButton:
+            # byme
+            if self.drawPolygon():
+                self.handleDrawingPolygon(pos,self.epsilon)
+            #
             if self.drawing():
                 self.handleDrawing(pos)
             else:
@@ -272,6 +294,16 @@ class Canvas(QWidget):
             self.setHiding(True)
             self.repaint()
 
+    #====byme
+    def handleDrawingPolygon(self,pos,epsilon=1):
+        # self.polyStart = pos
+        if len(self.polyPoints) > 0 and distance(pos-self.polyPoints[0]) < epsilon:
+            self.mode = self.EDIT
+            # self.polyPoints.remove(self.polyPoints[-1])
+        else:
+            self.polyPoints.append(pos)
+        pass
+    #===========
     def handleDrawing(self, pos):
         if self.current and self.current.reachMaxPoints() is False:
             initPos = self.current[0]
@@ -476,7 +508,32 @@ class Canvas(QWidget):
                 else:
                     p.drawText(loc,Qt.AlignLeft,txt)
 
-        #===byMe==========
+        #paint polygon
+
+        p.setPen(self.drawingRectColor)
+
+        if len(self.polyPoints) > 0:
+            
+            for i in range(len(self.polyPoints)-1):
+                brush = QBrush(Qt.BDiagPattern)
+                p.setBrush(brush)
+                p.drawLine(self.polyPoints[i],self.polyPoints[i+1])
+
+            if self.mode == self.POLYGON:
+                # brush = QBrush(Qt.BDiagPattern)
+                # p.setBrush(brush)
+                p.drawLine(self.polyPoints[-1],self.polyEnd)
+
+            if self.mode != self.POLYGON:
+                p.drawLine(self.polyPoints[-1],self.polyPoints[0])
+
+
+        for i in range(len(self.polyPoints)):
+                brush = QBrush(Qt.red)
+                p.setBrush(brush)
+                p.drawEllipse(self.polyPoints[i],5,5)
+
+        #=============
         # Paint rect
         if self.current is not None and len(self.line) == 2:
             leftTop = self.line[0]

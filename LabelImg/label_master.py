@@ -117,6 +117,8 @@ class labelMaster(QMainWindow,WindowMixin):
             ,OPEN_DIR,"res/openDir.png","Open image folder")
          createShape = action("Create rect box",self.createShape
             ,CREATE,"res/draw.png","Start draw rectangle")
+         createPolygon = action("Create polygon",self.createPolygon
+            ,CREATE,"res/polygon.png","Start draw polygon")
          copy = action('copy', self.copySelectedShape
             ,COPY,'res/copy.png','dupBoxDetail',enabled=False)
          saveFile = action("Save",self.save
@@ -159,7 +161,7 @@ class labelMaster(QMainWindow,WindowMixin):
          actionMenuEdit = [createShape,implement,editLabel,copy,lineColor,textColor,font,deleteShape]
          addActions(self.menus.edit,actionMenuEdit)
 
-         actionToolbar = (openFile,openDir,saveFile,createShape,editLabel,implement,nextImage,backImage)
+         actionToolbar = (openFile,openDir,saveFile,createShape,createPolygon,editLabel,implement,nextImage,backImage)
          self.toolbar("Tools",actions=actionToolbar)
 
          self.zoomWidget = ZoomWidget()
@@ -173,7 +175,8 @@ class labelMaster(QMainWindow,WindowMixin):
          
         # Group zoom controls into a list for easier toggling.
          beginner = (implement,editLabel,copy,deleteShape)
-         self.actions = struct(openFile=openFile,openDir=openDir,saveFile=saveFile,createShape=createShape
+         self.actions = struct(openFile=openFile,openDir=openDir,saveFile=saveFile
+                                ,createShape=createShape,createPolygon=createPolygon
                                 ,editLabel=editLabel,deleteShape=deleteShape,copy=copy
                                 ,implement=implement
                                 ,lineColor=lineColor,textColor=textColor,font=font
@@ -479,6 +482,9 @@ class labelMaster(QMainWindow,WindowMixin):
         except:
             return default
 
+     def createPolygon(self):
+        self.canvas.setDrawPolygon()
+        self.actions.createShape.setEnabled(True)
      def createShape(self):
         self.canvas.setEditing(False)
 
@@ -489,7 +495,8 @@ class labelMaster(QMainWindow,WindowMixin):
             # print('rm empty label')
             return
         item = self.shapesToItems[shape]
-        index = self.canvas.shapes.index(item)
+        # index = self.canvas.shapes.index(shape)
+        
         self.labelList.takeItem(self.labelList.row(item))
         self.canvas.text = []
         self.canvas.locText = []
@@ -502,7 +509,7 @@ class labelMaster(QMainWindow,WindowMixin):
         del self.shapesToItems[shape]
         del self.itemsToShapes[item]
 
-        del self.bEndThreads[index]
+        # del self.bEndThreads[index]
         
      def boxFont(self):
         font, ok = QFontDialog.getFont()

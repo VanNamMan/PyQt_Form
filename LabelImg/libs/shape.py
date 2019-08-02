@@ -156,8 +156,8 @@ class Shape(object):
         else:
             self.vertex_fill_color = Shape.vertex_fill_color
         if shape == self.P_SQUARE:
-            # path.addRect(point.x() - d / 2, point.y() - d / 2, d, d)
-            path.addEllipse(point, d, d)
+            path.addRect(point.x() - d / 2, point.y() - d / 2, d, d)
+            # path.addEllipse(point, d, d)
             # path.addPolygon(QPolygonF([point-QPointF(d/2,0),point+QPointF(d/2,0)]))
             # path.addPolygon(QPolygonF([point-QPointF(0,d/2),point+QPointF(0,d/2)]))
         elif shape == self.P_ROUND:

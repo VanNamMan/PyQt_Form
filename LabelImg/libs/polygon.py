@@ -93,7 +93,7 @@ class Polygon(object):
             # Uncommenting the following line will draw 2 paths
             # for the 1st vertex, and make it non-filled, which
             # may be desirable.
-            self.drawVertex(vrtx_path, 0)
+            # self.drawVertex(vrtx_path, 0)
 
             for i, p in enumerate(self.points):
                 line_path.lineTo(p)

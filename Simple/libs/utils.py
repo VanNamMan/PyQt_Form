@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 
 import cv2,time
 import numpy as np
+import threading 
 
 class struct(object):
 
@@ -11,7 +12,7 @@ class struct(object):
         self.__dict__.update(kwargs)
 
 def newIcon(path):
-	return QIcon(path)
+    return QIcon(path)
 
 def newAction(parent, text, slot=None, shortcut=None, icon=None,
               tip=None, checkable=False, enabled=True):
@@ -43,35 +44,46 @@ def addActions(widget, actions):
         else:
             widget.addAction(action)
 
-def newWidget(user,parent,text,style="background-color: black"):
-	w = parent(text,user)
-	w.setStyleSheet(style)
-	return w
+def newWidget(parent,widget,text,style=None):
+    try:
+        w = widget(text,parent)
+    except:
+        w = widget(parent)
+    if style is not None:
+       w.setStyleSheet(style)
+    return w
 
+def newButton(parent,text,slot=None):
+    but = QPushButton(text,parent)
+    if slot is not None:
+        but.clicked.connect(slot)
+
+    return but
 
 def showImage(label,image):
-	t0 = time.time()
+    
+    hF,wF = label.height(),label.width()
+    h,w,*channel = image.shape
 
-	hF,wF = label.height(),label.width()
-	h,w,*channel = image.shape
+    s = min(hF/h,wF/w)
+    new_W = int(max(w*s - 2,1))
+    new_H = int(max(h*s - 2,1))
+    print(new_H,new_W)
+    # rgb = np.array(image,copy=True)
+    rgb = image.copy()
 
-	s = min(hF/h,wF/w)
-	new_W = int(max(w*s - 2,1))
-	new_H = int(max(h*s - 2,1))
-	print(new_H,new_W)
-	# rgb = np.array(image,copy=True)
-	rgb = image.copy()
+    rgb = cv2.resize(rgb,(new_W,new_H))
 
-	rgb = cv2.resize(rgb,(new_W,new_H))
+    height, width,*channel = rgb.shape
+    if channel[0] == 3 :
+        rgb = cv2.cvtColor(rgb,cv2.COLOR_BGR2RGB)
+    else:
+        rgb = cv2.cvtColor(rgb,cv2.COLOR_GRAY2RGB)
 
-	height, width,*channel = rgb.shape
-	if channel[0] == 3 :
-		rgb = cv2.cvtColor(rgb,cv2.COLOR_BGR2RGB)
-	else:
-		rgb = cv2.cvtColor(rgb,cv2.COLOR_GRAY2RGB)
+    bytesPerLine = 3 * width
+    qImg = QImage(rgb.data, width, height, bytesPerLine, QImage.Format_RGB888)
+    label.setPixmap(QPixmap(qImg))
 
-	bytesPerLine = 3 * width
-	qImg = QImage(rgb.data, width, height, bytesPerLine, QImage.Format_RGB888)
-	label.setPixmap(QPixmap(qImg))
-
-	print("time convert : ",time.time()-t0)
+def newThread(target,args=()):
+    myThread = threading.Thread(target=target,args=args)
+    myThread.start()

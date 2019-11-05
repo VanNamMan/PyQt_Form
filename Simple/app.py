@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import *
 
 from libs.toolBar import ToolBar
 from libs.utils import *
+from libs.cvLib import *
+from dialog.settings_dlg import setting
 
 import cv2
 import numpy as np
@@ -57,10 +59,15 @@ class myApp(QMainWindow,WindowMixin):
         addActions(self.menus.file,
                    (openfile, quit))
 
-        tools = [action('Auto',None,'Ctrl+Q', 'icon/magic-wand.png', 'run'),
-                    action('Manual', None,'Ctrl+Q', 'icon/User_Manual.png', ''),
-                    action('Setting', None,'Ctrl+Q', 'icon/setting.png', ''),
-                    action('Data', None,'Ctrl+Q', 'icon/data2.ico', '')]
+        start = action('Start',self.openCamera,'', 'icon/magic-wand.png', 'run')
+        manual = action('Manual', None,'', 'icon/User_Manual.png', '')
+        settings = action('Setting',self.openSettings,'', 'icon/setting.png', '')
+        data = action('Data', None,'', 'icon/data2.ico', '')
+
+        self.actions = struct(openfile=openfile,quit=quit,start=start,manual=manual,
+            settings=settings,data=data)
+
+        tools = [start,manual,settings,data]
         myTools = self.toolbar("Tools",tools) 
 
         widget = QWidget(self)
@@ -71,13 +78,76 @@ class myApp(QMainWindow,WindowMixin):
         layout.addWidget(self.frame)
         widget.setLayout(layout)
 
-               
+        #init
+        self.initVar()
+
+    def initVar(self):
+        self.bOpenCamera = False
+        self.cap = None
+        self.bLive = False
+
+        self.initCamera()
+
+    def initCamera(self):
+        self.cap = cv2.VideoCapture(0)
+        self.bOpenCamera = self.cap.isOpened()
+        print("Camera 0 open : ",self.bOpenCamera)
     
+    def liveCamera(self,cap):
+        self.bLive = True
+        while cap.isOpened():
+            if self.bLive :
+                ret,image = cap.read()
+                if ret :
+                    newThread(self.processImage,(image,))
+                    
+            time.sleep(0.005)
+
     def openCamera(self):
-        pass
+        if self.actions.start.text() == "Start":
+            if self.cap is None:
+                self.initCamera()
+            if self.bOpenCamera:
+                newThread(self.liveCamera,(self.cap,))
+                self.actions.start.setText("Stop")
+                self.actions.start.setIcon(QIcon("icon/stop.ico"))
+
+        elif self.actions.start.text() == "Stop":
+            self.bLive = False
+            self.actions.start.setText("Start")
+            self.actions.start.setIcon(QIcon("icon/magic-wand.png"))
+
+
+    def releaseCamera(self):
+        if self.cap is not None:
+            self.bLive = False
+            self.cap.release()
+            print("camera closed.")
+
+    def processImage(self,image):
+        t0 = time.time()
+
+        print("frame : ",image.shape[:2][::-1])
+        hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
+        showImage(self.frame,hsv)
+        
+        print("process-time/frame : ",time.time()-t0)
+
     def openFile(self):
         path = os.getcwd()
         filters = "Open Image file (%s)" % ' '.join(['*.jpg',"*.png"])
         filename,_ = QFileDialog.getOpenFileName(self,'%s - Choose a Image file' % __appname__, path, filters)
         if filename:
-            showImage(self.frame,cv2.imread(filename))
+            image = cv2.imread(filename)
+            showImage(self.frame,image)
+            def func(image):
+                print(readCode(image))
+            newThread(func,(image,))
+
+    def openSettings(self):
+        dialog = setting(self)
+        dialog.show()
+
+    def closeEvent(self,ev):
+        self.releaseCamera()
+        print("%s closed."%__appname__)

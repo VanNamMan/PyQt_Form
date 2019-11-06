@@ -2,58 +2,58 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
-from libs.utils import *
-from libs.files import *
+from libs.utils import newButton
+from myLibs.files import *
 
 from configparser import ConfigParser
 
 
 
-class setting(QDialog):
+class settingDialog(QDialog):
 	def __init__(self,parent):
-		super(setting,self).__init__(parent)
+		super(settingDialog,self).__init__(parent)
 		self.setWindowTitle("Settings")
 		self.setGeometry(QRect(200,100,200,500))
 
 		layout = QVBoxLayout()
 
-		group_binary = newWidget(self,QGroupBox,"Binary")
-		group_removeContours = newWidget(self,QGroupBox,"Remove Contours")
-		group_blurAndMorph = newWidget(self,QGroupBox,"Blur , Morphology")
+		group_binary = QGroupBox("Binary",self)
+		group_removeContours = QGroupBox("Remove Contours",self)
+		group_blurAndMorph = QGroupBox("Blur , Morphology",self)
 
-		lb_thresh = newWidget(self,QLabel,"k-thresh")
-		self.edit_thresh = newWidget(self,QLineEdit,"150")
+		lb_thresh = QLabel("k-thresh")
+		self.edit_thresh = QLineEdit("150")
 
-		lb_c = newWidget(self,QLabel,"C")
-		self.edit_c = newWidget(self,QLineEdit,"3")
+		lb_c = QLabel("C")
+		self.edit_c = QLineEdit("3")
 
-		lb_blockSize = newWidget(self,QLabel,"blockSize")
-		self.edit_blockSize = newWidget(self,QLineEdit,"11")
+		lb_blockSize = QLabel("blockSize")
+		self.edit_blockSize = QLineEdit("11")
 
-		lb_rangeWidth = newWidget(self,QLabel,"rangeWidth")
-		self.edit_minWidth = newWidget(self,QLineEdit,"-1")
-		self.edit_maxWidth = newWidget(self,QLineEdit,"-1")
+		lb_rangeWidth = QLabel("rangeWidth")
+		self.edit_minWidth = QLineEdit("-1")
+		self.edit_maxWidth = QLineEdit("-1")
 
-		lb_rangeHeight = newWidget(self,QLabel,"rangeHeight")
-		self.edit_minHeight = newWidget(self,QLineEdit,"-1")
-		self.edit_maxHeight = newWidget(self,QLineEdit,"-1")
+		lb_rangeHeight = QLabel("rangeHeight")
+		self.edit_minHeight = QLineEdit("-1")
+		self.edit_maxHeight = QLineEdit("-1")
 
-		lb_rangeArea = newWidget(self,QLabel,"rangeArea")
-		self.edit_minArea = newWidget(self,QLineEdit,"-1")
-		self.edit_maxArea = newWidget(self,QLineEdit,"-1")
+		lb_rangeArea = QLabel("rangeArea")
+		self.edit_minArea = QLineEdit("-1")
+		self.edit_maxArea = QLineEdit("-1")
 
-		lb_kSizeBlur = newWidget(self,QLabel,"kSizeBlur")
-		self.edit_kSizeBlur = newWidget(self,QLineEdit,"3")
+		lb_kSizeBlur = QLabel("kSizeBlur")
+		self.edit_kSizeBlur = QLineEdit("3")
 
-		lb_kSizeMorph = newWidget(self,QLabel,"kSizeMorph")
-		self.edit_kSizeMorph = newWidget(self,QLineEdit,"3")
+		lb_kSizeMorph = QLabel("kSizeMorph")
+		self.edit_kSizeMorph = QLineEdit("3")
 
-		lb_iter = newWidget(self,QLabel,"iter")
-		self.edit_iter = newWidget(self,QLineEdit,"1")
+		lb_iter = QLabel("iter")
+		self.edit_iter = QLineEdit("1")
 
-		advance = newButton(self,"Advance Settings",self.advance)
-		apply_ = newButton(self,"Apply",self.apply)
-		close_ = newButton(self,"Close",self.close)
+		advance = newButton("Advance Settings","",self.advance)
+		apply_ = newButton("Apply","",self.apply)
+		close_ = newButton("Close","",self.close)
 
 		# group binary
 		sub_layout = QGridLayout()

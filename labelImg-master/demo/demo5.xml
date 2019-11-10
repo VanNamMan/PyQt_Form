@@ -1,0 +1,26 @@
+<annotation>
+	<folder>demo</folder>
+	<filename>demo5.png</filename>
+	<path>/home/mannam/github/PyQt_Form/labelImg-master/demo/demo5.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2560</width>
+		<height>1600</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>dog</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>687</xmin>
+			<ymin>20</ymin>
+			<xmax>1393</xmax>
+			<ymax>726</ymax>
+		</bndbox>
+	</object>
+</annotation>

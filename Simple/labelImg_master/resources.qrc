@@ -1,6 +1,15 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
 
+<file alias="setting">resources/icons/setting.png</file>
+<file alias="auto">resources/icons/auto.png</file>
+<file alias="manual">resources/icons/manual.png</file>
+<file alias="teaching">resources/icons/setting.png</file>
+<file alias="data">resources/icons/data.png</file>
+<file alias="capture">resources/icons/capture.png</file>
+<file alias="start">resources/icons/start.png</file>
+
+
 <file alias="help">resources/icons/help.png</file>
 <file alias="app">resources/icons/app.png</file>
 <file alias="expert">resources/icons/expert2.png</file>

@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import pytesseract
-from pyzbar.pyzbar import decode
-from pylibdmtx.pylibdmtx import decode as D
+from pyzbar import pyzbar
+# from pylibdmtx.pylibdmtx import decode as D
 
 # import sklearn.cluster
 # from sklearn.externals import joblib
@@ -131,15 +131,13 @@ def rotated(img,angle):
     rot = cv2.warpAffine(img, M, (w, h),flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
     return rot
 
-def get_matrixCode(img):
+def getCode(img):
     code = []
     try:
-        code = D(img)
-        if len(code) == 0:
-            code = decode(img)
+        code = pyzbar.decode(img)
         return code
     except:
-        return code
+        return None
     pass
 
 def InList(a,lst=(0,10)):

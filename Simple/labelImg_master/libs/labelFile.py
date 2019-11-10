@@ -10,6 +10,7 @@ from base64 import b64encode, b64decode
 from libs.pascal_voc_io import PascalVocWriter
 from libs.yolo_io import YOLOWriter
 from libs.pascal_voc_io import XML_EXT
+from libs.config_io import ConfigWriter
 import os.path
 import sys
 
@@ -28,6 +29,25 @@ class LabelFile(object):
         self.imagePath = None
         self.imageData = None
         self.verified = False
+
+    def saveConfigFormat(self, filename, shapes,
+                            lineColor=None, fillColor=None, databaseSrc=None):
+
+        writer = ConfigWriter(filename)
+
+        for shape in shapes:
+            index = shapes.index(shape)
+            points = shape['points']
+            label = shape['label']
+            # Add Chris
+            difficult = int(shape['difficult'])
+            bndbox = LabelFile.convertPoints2BndBox(points)
+            info = {"bndbox" : "%d,%d,%d,%d"%(bndbox[0],bndbox[1],bndbox[2],bndbox[3]),
+                    "func" : label}
+            writer.addConfig(index,info)
+
+        writer.save()
+        pass
 
     def savePascalVocFormat(self, filename, shapes, imagePath, imageData,
                             lineColor=None, fillColor=None, databaseSrc=None):

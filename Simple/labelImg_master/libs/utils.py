@@ -3,6 +3,7 @@ from libs.ustr import ustr
 import hashlib
 import re
 import sys
+import threading
 
 try:
     from PyQt5.QtGui import *
@@ -12,6 +13,9 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
+def newThread(target,args=()):
+    thread = threading.Thread(target=target,args=args)
+    thread.start()
 
 def newIcon(icon):
     return QIcon(':/' + icon)

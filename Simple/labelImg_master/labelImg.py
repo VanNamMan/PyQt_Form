@@ -205,7 +205,7 @@ class Master(QMainWindow, WindowMixin):
                          'Ctrl+u', 'open', getStr('openDir'))
 
         changeSavedir = action(getStr('changeSaveDir'), self.changeSavedirDialog,
-                               'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'))
+                               'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'),enabled=False)
 
         openAnnotation = action(getStr('openAnnotation'), self.openAnnotationDialog,
                                 'Ctrl+Shift+O', 'open', getStr('openAnnotationDetail'))
@@ -247,6 +247,9 @@ class Master(QMainWindow, WindowMixin):
         copy = action(getStr('dupBox'), self.copySelectedShape,
                       'Ctrl+D', 'copy', getStr('dupBoxDetail'),
                       enabled=False)
+
+        # setting = action('setting', self.copySelectedShape,
+        #               '', 'setting','openSetting',enabled=False)
 
         advancedMode = action(getStr('advancedMode'), self.toggleAdvancedMode,
                               'Ctrl+Shift+A', 'expert', getStr('advancedModeDetail'),
@@ -336,7 +339,7 @@ class Master(QMainWindow, WindowMixin):
                                   open, opendir, save, saveAs, close, resetAll, quit),
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
-                                        None, color1, self.drawSquaresOption),
+                                        None, color1,self.drawSquaresOption),
                               beginnerContext=(create, edit, copy, delete),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
@@ -793,18 +796,22 @@ class Master(QMainWindow, WindowMixin):
         # Can add differrent annotation formats here
         try:
             if self.usingPascalVocFormat is True:
+                filename = os.path.dirname(annotationFilePath)+"/parameter.config"
+                self.labelFile.saveConfigFormat(filename,shapes)
+                print('Image:{0} -> teaching:{1}'.format(self.filePath, filename))
+
                 if annotationFilePath[-4:].lower() != ".xml":
                     annotationFilePath += XML_EXT
                 self.labelFile.savePascalVocFormat(annotationFilePath, shapes, self.filePath, self.imageData,
                                                    self.lineColor.getRgb(), self.fillColor.getRgb())
-            elif self.usingYoloFormat is True:
-                if annotationFilePath[-4:].lower() != ".txt":
-                    annotationFilePath += TXT_EXT
-                self.labelFile.saveYoloFormat(annotationFilePath, shapes, self.filePath, self.imageData, self.labelHist,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
-            else:
-                self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
-                                    self.lineColor.getRgb(), self.fillColor.getRgb())
+            # elif self.usingYoloFormat is True:
+            #     if annotationFilePath[-4:].lower() != ".txt":
+            #         annotationFilePath += TXT_EXT
+            #     self.labelFile.saveYoloFormat(annotationFilePath, shapes, self.filePath, self.imageData, self.labelHist,
+            #                                        self.lineColor.getRgb(), self.fillColor.getRgb())
+            # else:
+            #     self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
+            #                         self.lineColor.getRgb(), self.fillColor.getRgb())
             print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except LabelFileError as e:

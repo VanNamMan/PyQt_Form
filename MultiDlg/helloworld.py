@@ -1,12 +1,13 @@
-from PyQt5.QtWidgets import QMainWindow,QDialog, QMessageBox,QWidget, QApplication,QMenu,QAction,QFileDialog,QToolBar
-from PyQt5.QtCore import Qt, QObject, QSize, QRect,QPoint
-import PyQt5.QtCore as QtCore
-from PyQt5.QtGui import QResizeEvent,QImage,QPixmap,QCloseEvent,QIcon
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+
 from ui_helloworld import Ui_HelloWorldDlg
 from autodlg import AutoDlg
 from manualdlg import ManualDlg
 from teachdlg import TeachDlg
 from datadlg import DataDlg
+
 import cv2
 import threading,time,os
 import numpy as np

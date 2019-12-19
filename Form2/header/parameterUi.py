@@ -1,0 +1,118 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'UI/parameter.ui'
+#
+# Created by: PyQt5 UI code generator 5.13.2
+#
+# WARNING! All changes made in this file will be lost!
+
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+
+class Ui_ParaDlg(object):
+    def setupUi(self, ParaDlg):
+        ParaDlg.setObjectName("ParaDlg")
+        ParaDlg.resize(234, 533)
+        self.verticalLayoutWidget = QtWidgets.QWidget(ParaDlg)
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 30, 201, 491))
+        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.treeParams = QtWidgets.QTreeWidget(self.verticalLayoutWidget)
+        self.treeParams.setObjectName("treeParams")
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setUnderline(False)
+        font.setWeight(50)
+        self.treeParams.headerItem().setFont(0, font)
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
+        brush.setStyle(QtCore.Qt.NoBrush)
+        self.treeParams.headerItem().setForeground(0, brush)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1.setFlags(QtCore.Qt.ItemIsDragEnabled|QtCore.Qt.ItemIsDropEnabled|QtCore.Qt.ItemIsUserCheckable|QtCore.Qt.ItemIsEnabled)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1.setFlags(QtCore.Qt.ItemIsDragEnabled|QtCore.Qt.ItemIsUserCheckable|QtCore.Qt.ItemIsEnabled)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeParams)
+        item_1 = QtWidgets.QTreeWidgetItem(item_0)
+        item_1.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsUserCheckable|QtCore.Qt.ItemIsEnabled)
+        self.verticalLayout.addWidget(self.treeParams)
+        self.treeCamera = QtWidgets.QTreeWidget(self.verticalLayoutWidget)
+        self.treeCamera.setMaximumSize(QtCore.QSize(16777215, 100))
+        self.treeCamera.setObjectName("treeCamera")
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
+        item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
+        self.verticalLayout.addWidget(self.treeCamera)
+        self.but_save = QtWidgets.QPushButton(self.verticalLayoutWidget)
+        self.but_save.setStyleSheet("font: 57 20pt \"Ubuntu\";")
+        self.but_save.setObjectName("but_save")
+        self.verticalLayout.addWidget(self.but_save)
+
+        self.retranslateUi(ParaDlg)
+        QtCore.QMetaObject.connectSlotsByName(ParaDlg)
+
+    def retranslateUi(self, ParaDlg):
+        _translate = QtCore.QCoreApplication.translate
+        ParaDlg.setWindowTitle(_translate("ParaDlg", "Form"))
+        self.treeParams.headerItem().setText(0, _translate("ParaDlg", "Parameter"))
+        self.treeParams.headerItem().setText(1, _translate("ParaDlg", "Value"))
+        __sortingEnabled = self.treeParams.isSortingEnabled()
+        self.treeParams.setSortingEnabled(False)
+        self.treeParams.topLevelItem(0).setText(0, _translate("ParaDlg", "binary"))
+        self.treeParams.topLevelItem(0).child(0).setText(0, _translate("ParaDlg", "threshold"))
+        self.treeParams.topLevelItem(0).child(1).setText(0, _translate("ParaDlg", "type"))
+        self.treeParams.topLevelItem(0).child(2).setText(0, _translate("ParaDlg", "method"))
+        self.treeParams.topLevelItem(1).setText(0, _translate("ParaDlg", "blur"))
+        self.treeParams.topLevelItem(1).child(0).setText(0, _translate("ParaDlg", "size"))
+        self.treeParams.topLevelItem(1).child(1).setText(0, _translate("ParaDlg", "method"))
+        self.treeParams.topLevelItem(2).setText(0, _translate("ParaDlg", "morphology"))
+        self.treeParams.topLevelItem(2).child(0).setText(0, _translate("ParaDlg", "size"))
+        self.treeParams.topLevelItem(2).child(1).setText(0, _translate("ParaDlg", "iter"))
+        self.treeParams.topLevelItem(2).child(2).setText(0, _translate("ParaDlg", "method"))
+        self.treeParams.topLevelItem(3).setText(0, _translate("ParaDlg", "removeBlobs"))
+        self.treeParams.topLevelItem(3).child(0).setText(0, _translate("ParaDlg", "width"))
+        self.treeParams.topLevelItem(3).child(1).setText(0, _translate("ParaDlg", "height"))
+        self.treeParams.topLevelItem(3).child(2).setText(0, _translate("ParaDlg", "area"))
+        self.treeParams.topLevelItem(4).setText(0, _translate("ParaDlg", "ocr"))
+        self.treeParams.topLevelItem(4).child(0).setText(0, _translate("ParaDlg", "oem"))
+        self.treeParams.topLevelItem(4).child(1).setText(0, _translate("ParaDlg", "psm"))
+        self.treeParams.topLevelItem(4).child(2).setText(0, _translate("ParaDlg", "lang"))
+        self.treeParams.topLevelItem(5).setText(0, _translate("ParaDlg", "matchingTemp"))
+        self.treeParams.topLevelItem(5).child(0).setText(0, _translate("ParaDlg", "score"))
+        self.treeParams.setSortingEnabled(__sortingEnabled)
+        self.treeCamera.headerItem().setText(0, _translate("ParaDlg", "Camera"))
+        self.treeCamera.headerItem().setText(1, _translate("ParaDlg", "Value"))
+        __sortingEnabled = self.treeCamera.isSortingEnabled()
+        self.treeCamera.setSortingEnabled(False)
+        self.treeCamera.topLevelItem(0).setText(0, _translate("ParaDlg", "Type"))
+        self.treeCamera.topLevelItem(1).setText(0, _translate("ParaDlg", "Id"))
+        self.treeCamera.setSortingEnabled(__sortingEnabled)
+        self.but_save.setText(_translate("ParaDlg", "Save"))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    ParaDlg = QtWidgets.QWidget()
+    ui = Ui_ParaDlg()
+    ui.setupUi(ParaDlg)
+    ParaDlg.show()
+    sys.exit(app.exec_())

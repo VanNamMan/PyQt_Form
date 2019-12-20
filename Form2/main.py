@@ -8,27 +8,19 @@ from resultDlg import*
 
 from libs_ import resources
 from libs_.utils import *
+from libs_.canvas import *
 
 import os,cv2,time,threading
 import numpy as np
+from functools import partial
 
 __appname__ = "Vision Master"
 __version__ = "1.1.0"
 __date__ = "19.12.2019"
+ext = ".png"
 
-def newIcon(icon):
-    return QIcon(':/' + icon)
-
-def addActions(menu,actions):
-    for act in actions:
-        menu.addAction(act)
-
-def addWidgets(layout,wds):
-    for w in wds:
-        layout.addWidget(w)
-
-def addTriggered(action,trigger):
-    action.triggered.connect(trigger)
+mkdir("Parameter")
+mkdir("Image")
 
 class mainWindow(QMainWindow):
     NORMAL = -1
@@ -52,52 +44,107 @@ class mainWindow(QMainWindow):
         dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
 
         self.paraDlg = ParaDlg()
+        self.paraDlg.saveConfigSignal.connect(self.saveConfigRequest)
+        self.paraDlg.loadConfigSignal.connect(self.loadConfigRequest)
 
         self.paraDock = QDockWidget('parameter', self)
         self.paraDock.setWidget(self.paraDlg)
         self.paraDock.setFeatures(dockFeatures)
         self.addDockWidget(Qt.RightDockWidgetArea, self.paraDock)
-        self.toggleParaDock = self.paraDock.toggleViewAction()
+        toggleParaDock = self.paraDock.toggleViewAction()
         self.paraDock.setMinimumWidth(200)
-        self.ui.menuSetting.addAction(self.toggleParaDock)
-
         self.paraDock.hide()
-
-        self.central = QWidget(self)
-        hlayout = QHBoxLayout()
-        self.frame_display = QLabel("")
-        self.frame_display.setStyleSheet("background:black")
-        self.frame_result = QLabel("")
-        self.frame_result.setStyleSheet("background:black")
-        self.resultDlg = ResultDlg()
-        self.resultDlg.setMaximumWidth(300)
-        addWidgets(hlayout,[self.resultDlg,self.frame_display,self.frame_result])
-        self.central.setLayout(hlayout)
-
-        self.setCentralWidget(self.central)
-
+        #  action
+        action = partial(newAction,self)
+        auto = action("auto",self.showAuto,"a","home")
+        teaching = action("teaching",self.showTeaching,"s","teach")
+        addActions(self.ui.menuSetting,[auto,teaching,toggleParaDock])
+        # triggered
+        self.ui.actionopen.setShortcut("ctrl+o")
+        self.ui.actiondraw.setShortcut("w")
+        addTriggered(self.ui.actionopen,self.openFile)
+        addTriggered(self.ui.actiondraw,self.drawing)
         # Icon
         self.ui.actionopen.setIcon(newIcon("open"))
         self.ui.actionsave.setIcon(newIcon("save"))
         self.ui.actionexit.setIcon(newIcon("quit"))
         self.ui.actionversion.setIcon(newIcon("version"))
         self.ui.actioninfomation.setIcon(newIcon("info"))
-        self.toggleParaDock.setIcon(newIcon("setting"))
+        self.ui.actiondraw.setIcon(newIcon("draw"))
+        # central widget
+        self.stacker = QStackedWidget(self)
+
+        self.autoWidget = QWidget(self)
+        hlayout = QHBoxLayout()
+        self.frame_display = Canvas(self)
+        self.frame_result = Canvas(self)
+        self.resultDlg = ResultDlg()
+        self.resultDlg.setMaximumWidth(300)
+        addWidgets(hlayout,[self.resultDlg,self.frame_display,self.frame_result])
+        self.autoWidget.setLayout(hlayout)
+
+        self.teachWidget = QWidget(self)
+        self.frame_teaching = Canvas(self)
+        layout = QVBoxLayout()
+        layout.addWidget(self.frame_teaching)
+        self.teachWidget.setLayout(layout)
+
+        self.stacker.addWidget(self.autoWidget)
+        self.stacker.addWidget(self.teachWidget)
+
+        self.setCentralWidget(self.stacker)
 
         self.resultDlg.ui.but_start.setIcon(newIcon("start"))
         self.resultDlg.ui.but_stop.setIcon(newIcon("stop"))
         self.resultDlg.ui.but_reset.setIcon(newIcon("reset"))
+        toggleParaDock.setIcon(newIcon("setting"))
+
+        # tracking , signal teaching
+        self.frame_teaching.setTracking(True)
+        self.frame_teaching.addRoiSignal.connect(self.crop)
+        self.frame_teaching.cropSignal.connect(self.crop)
+        self.frame_teaching.computeAreaSignal.connect(self.computeArea)
+        self.frame_teaching.computeDistanceSignal.connect(self.computeDistance)
+        self.frame_teaching.computeMeanSignal.connect(self.computeMean)
         # 
         self.statusSignal.connect(self.statusRequest)
-        self.statusSignal.emit(self.NG)
-
-        # triggered
-        addTriggered(self.ui.actionopen,self.openFile)
-
-        # treeWidget
         # variable
         self.mInput = None
+        self.paraDlg.update()
+        self.statusSignal.emit(self.OK)
     
+    def addLog(self,text):
+        text = "%s %s"%(getStrTime(),text)
+        self.resultDlg.ui.listWidget.addItem(text)
+
+    def crop(self):
+        shape = self.frame_teaching.shape
+        x,y,w,h = shape.x(),shape.y(),shape.width(),shape.height()
+        mCrop = self.mInput[y:y+h,x:x+w]
+        filename = "Image/mCrop%s"%ext
+        cv2.imwrite(filename,mCrop)
+        self.statusBar().showMessage("Image saved at %s"%filename)
+
+    def computeArea(self):
+        pass
+    def computeDistance(self):
+        pass
+    def computeMean(self):
+        pass
+    
+    def showTeaching(self):
+        self.stacker.setCurrentWidget(self.teachWidget)
+        self.ui.actionopen.setEnabled(True)
+        self.ui.actiondraw.setEnabled(True)
+    
+    def showAuto(self):
+        self.stacker.setCurrentWidget(self.autoWidget)
+        self.ui.actionopen.setEnabled(False)
+        self.ui.actiondraw.setEnabled(False)
+    
+    def drawing(self):
+        self.frame_teaching.setEditing(True)
+
     def statusRequest(self,stt):
         if stt == self.NORMAL :
             self.resultDlg.ui.lb_result.setStyleSheet(self.normStyle)
@@ -112,11 +159,23 @@ class mainWindow(QMainWindow):
     
     def openFile(self):
         filename,_ = QFileDialog.getOpenFileName(self,"Select Image File",os.getcwd()
-        ,"Image File (*.jpg)")
+        ,"Image File (*.jpg *.png *.bmp)")
         if filename:
             print(filename)
             self.mInput = cv2.imread(filename)
-            showImage(self.mInput,self.frame_display)
+            self.frame_teaching.showImage(self.mInput)
+    
+    def saveConfigRequest(self,bSave):
+        if(bSave):
+            QMessageBox.information(self,"Save Parameter","Save Parameter Done")
+        else:
+            QMessageBox.information(self,"Save Parameter","Save Parameter Fail")
+
+    def loadConfigRequest(self,bLoad):
+        if(bLoad):
+            QMessageBox.information(self,"Load Parameter","Load Parameter Done")
+        else:
+            QMessageBox.information(self,"Load Parameter","Load Parameter Fail")
 
 if __name__ == "__main__":
     import sys

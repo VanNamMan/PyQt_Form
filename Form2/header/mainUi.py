@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'UI/main.ui'
 #
-# Created by: PyQt5 UI code generator 5.13.0
+# Created by: PyQt5 UI code generator 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,6 +26,8 @@ class Ui_MainWindow(object):
         self.menuSetting.setObjectName("menuSetting")
         self.menuAbout = QtWidgets.QMenu(self.menubar)
         self.menuAbout.setObjectName("menuAbout")
+        self.menuEdit = QtWidgets.QMenu(self.menubar)
+        self.menuEdit.setObjectName("menuEdit")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -46,14 +48,18 @@ class Ui_MainWindow(object):
         self.actionversion.setObjectName("actionversion")
         self.actioninfomation = QtWidgets.QAction(MainWindow)
         self.actioninfomation.setObjectName("actioninfomation")
+        self.actiondraw = QtWidgets.QAction(MainWindow)
+        self.actiondraw.setObjectName("actiondraw")
         self.menuFile.addAction(self.actionopen)
         self.menuFile.addAction(self.actionsave)
         self.menuFile.addAction(self.actionsave_as)
         self.menuFile.addAction(self.actionexit)
         self.menuAbout.addAction(self.actionversion)
         self.menuAbout.addAction(self.actioninfomation)
+        self.menuEdit.addAction(self.actiondraw)
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuSetting.menuAction())
+        self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuAbout.menuAction())
 
         self.retranslateUi(MainWindow)
@@ -65,6 +71,7 @@ class Ui_MainWindow(object):
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuSetting.setTitle(_translate("MainWindow", "Setting"))
         self.menuAbout.setTitle(_translate("MainWindow", "About"))
+        self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
         self.actionopen.setText(_translate("MainWindow", "open"))
         self.actionsave.setText(_translate("MainWindow", "save"))
         self.actionsave_as.setText(_translate("MainWindow", "save as..."))
@@ -73,6 +80,7 @@ class Ui_MainWindow(object):
         self.actionvision_parameter.setText(_translate("MainWindow", "vision parameter"))
         self.actionversion.setText(_translate("MainWindow", "version"))
         self.actioninfomation.setText(_translate("MainWindow", "infomation"))
+        self.actiondraw.setText(_translate("MainWindow", "draw"))
 
 
 if __name__ == "__main__":

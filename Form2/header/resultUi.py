@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'UI/result.ui'
 #
-# Created by: PyQt5 UI code generator 5.13.0
+# Created by: PyQt5 UI code generator 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -81,6 +81,9 @@ class Ui_ResultDlg(object):
         self.gridLayout.addWidget(self.lb_result, 3, 0, 1, 3)
         self.listWidget = QtWidgets.QListWidget(self.gridLayoutWidget)
         self.listWidget.setMaximumSize(QtCore.QSize(16777215, 150))
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        self.listWidget.setFont(font)
         self.listWidget.setObjectName("listWidget")
         self.gridLayout.addWidget(self.listWidget, 4, 0, 1, 3)
         self.lb_ok = QtWidgets.QLabel(self.gridLayoutWidget)

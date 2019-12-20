@@ -44,8 +44,15 @@
     <addaction name="actionversion"/>
     <addaction name="actioninfomation"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actiondraw"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSetting"/>
+   <addaction name="menuEdit"/>
    <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -87,6 +94,11 @@
   <action name="actioninfomation">
    <property name="text">
     <string>infomation</string>
+   </property>
+  </action>
+  <action name="actiondraw">
+   <property name="text">
+    <string>draw</string>
    </property>
   </action>
  </widget>

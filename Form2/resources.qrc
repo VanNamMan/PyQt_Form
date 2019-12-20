@@ -11,6 +11,9 @@
 <file alias="version">res/version.png</file>
 <file alias="info">res/info.png</file>
 <file alias="setting">res/setting.png</file>
+<file alias="home">res/home.png</file>
+<file alias="teach">res/teach.png</file>
+<file alias="draw">res/draw.png</file>
 
 </qresource>
 </RCC>

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'UI/parameter.ui'
 #
-# Created by: PyQt5 UI code generator 5.13.0
+# Created by: PyQt5 UI code generator 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -15,7 +15,7 @@ class Ui_ParaDlg(object):
         ParaDlg.setObjectName("ParaDlg")
         ParaDlg.resize(690, 533)
         self.verticalLayoutWidget = QtWidgets.QWidget(ParaDlg)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 30, 201, 491))
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 30, 260, 491))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -61,13 +61,20 @@ class Ui_ParaDlg(object):
         item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
         item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
         self.verticalLayout.addWidget(self.treeCamera)
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
+        self.horizontalLayout.setObjectName("horizontalLayout")
         self.ch_teaching = QtWidgets.QCheckBox(self.verticalLayoutWidget)
         self.ch_teaching.setObjectName("ch_teaching")
-        self.verticalLayout.addWidget(self.ch_teaching)
+        self.horizontalLayout.addWidget(self.ch_teaching)
         self.but_save = QtWidgets.QPushButton(self.verticalLayoutWidget)
         self.but_save.setStyleSheet("font: 57 10pt \"Ubuntu\";")
         self.but_save.setObjectName("but_save")
-        self.verticalLayout.addWidget(self.but_save)
+        self.horizontalLayout.addWidget(self.but_save)
+        self.but_load = QtWidgets.QPushButton(self.verticalLayoutWidget)
+        self.but_load.setStyleSheet("font: 57 10pt \"Ubuntu\";")
+        self.but_load.setObjectName("but_load")
+        self.horizontalLayout.addWidget(self.but_load)
+        self.verticalLayout.addLayout(self.horizontalLayout)
 
         self.retranslateUi(ParaDlg)
         QtCore.QMetaObject.connectSlotsByName(ParaDlg)
@@ -110,6 +117,7 @@ class Ui_ParaDlg(object):
         self.treeCamera.setSortingEnabled(__sortingEnabled)
         self.ch_teaching.setText(_translate("ParaDlg", "teaching"))
         self.but_save.setText(_translate("ParaDlg", "Save"))
+        self.but_load.setText(_translate("ParaDlg", "Reload"))
 
 
 if __name__ == "__main__":

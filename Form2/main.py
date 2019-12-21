@@ -6,13 +6,11 @@ from header.mainUi import Ui_MainWindow
 from paraDlg import*
 from resultDlg import*
 
-from libs import resources
-from libs.utils import*
+from libs_ import resources
+from libs_.utils import *
 
 import os,cv2,time,threading
 import numpy as np
-
-
 
 __appname__ = "Vision Master"
 __version__ = "1.1.0"
@@ -59,12 +57,11 @@ class mainWindow(QMainWindow):
         self.paraDock.setWidget(self.paraDlg)
         self.paraDock.setFeatures(dockFeatures)
         self.addDockWidget(Qt.RightDockWidgetArea, self.paraDock)
-        toggleParaDock = self.paraDock.toggleViewAction()
+        self.toggleParaDock = self.paraDock.toggleViewAction()
         self.paraDock.setMinimumWidth(200)
-        self.ui.menuSetting.addAction(toggleParaDock)
+        self.ui.menuSetting.addAction(self.toggleParaDock)
 
         self.paraDock.hide()
-
 
         self.central = QWidget(self)
         hlayout = QHBoxLayout()
@@ -85,6 +82,7 @@ class mainWindow(QMainWindow):
         self.ui.actionexit.setIcon(newIcon("quit"))
         self.ui.actionversion.setIcon(newIcon("version"))
         self.ui.actioninfomation.setIcon(newIcon("info"))
+        self.toggleParaDock.setIcon(newIcon("setting"))
 
         self.resultDlg.ui.but_start.setIcon(newIcon("start"))
         self.resultDlg.ui.but_stop.setIcon(newIcon("stop"))
@@ -119,7 +117,6 @@ class mainWindow(QMainWindow):
             print(filename)
             self.mInput = cv2.imread(filename)
             showImage(self.mInput,self.frame_display)
-
 
 if __name__ == "__main__":
     import sys

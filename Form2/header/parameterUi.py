@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'UI/parameter.ui'
 #
-# Created by: PyQt5 UI code generator 5.13.2
+# Created by: PyQt5 UI code generator 5.13.0
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -13,7 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_ParaDlg(object):
     def setupUi(self, ParaDlg):
         ParaDlg.setObjectName("ParaDlg")
-        ParaDlg.resize(234, 533)
+        ParaDlg.resize(690, 533)
         self.verticalLayoutWidget = QtWidgets.QWidget(ParaDlg)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 30, 201, 491))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
@@ -61,8 +61,11 @@ class Ui_ParaDlg(object):
         item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
         item_0 = QtWidgets.QTreeWidgetItem(self.treeCamera)
         self.verticalLayout.addWidget(self.treeCamera)
+        self.ch_teaching = QtWidgets.QCheckBox(self.verticalLayoutWidget)
+        self.ch_teaching.setObjectName("ch_teaching")
+        self.verticalLayout.addWidget(self.ch_teaching)
         self.but_save = QtWidgets.QPushButton(self.verticalLayoutWidget)
-        self.but_save.setStyleSheet("font: 57 20pt \"Ubuntu\";")
+        self.but_save.setStyleSheet("font: 57 10pt \"Ubuntu\";")
         self.but_save.setObjectName("but_save")
         self.verticalLayout.addWidget(self.but_save)
 
@@ -105,6 +108,7 @@ class Ui_ParaDlg(object):
         self.treeCamera.topLevelItem(0).setText(0, _translate("ParaDlg", "Type"))
         self.treeCamera.topLevelItem(1).setText(0, _translate("ParaDlg", "Id"))
         self.treeCamera.setSortingEnabled(__sortingEnabled)
+        self.ch_teaching.setText(_translate("ParaDlg", "teaching"))
         self.but_save.setText(_translate("ParaDlg", "Save"))
 
 

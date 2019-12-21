@@ -10,6 +10,7 @@
 <file alias="quit">res/quit.png</file>
 <file alias="version">res/version.png</file>
 <file alias="info">res/info.png</file>
+<file alias="setting">res/setting.png</file>
 
 </qresource>
 </RCC>

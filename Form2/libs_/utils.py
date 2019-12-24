@@ -6,11 +6,31 @@ import cv2,os,time,threading
 import pandas as pd
 import numpy as np
 
+class HashableQListWidgetItem(QListWidgetItem):
+
+    def __init__(self, *args):
+        super(HashableQListWidgetItem, self).__init__(*args)
+
+    def __hash__(self):
+        return hash(id(self))
+
 def getStrDateTime():
 	return time.strftime("%d%m%y_%H%M%S")
 
 def getStrTime():
 	return time.strftime("%H:%M:%S")
+
+def str2ListInt(string):
+	lst = string.split(",")
+	return [int(l) for l in lst]
+
+def addItems(cbb,items):
+    [cbb.addItem(it) for it in items]
+
+def newCbb(items,parent):
+    cbb = QComboBox(parent)
+    addItems(cbb,items)
+    return cbb
 
 def newIcon(icon):
     return QIcon(':/' + icon)
@@ -18,6 +38,15 @@ def newIcon(icon):
 def addActions(menu,actions):
     for act in actions:
         menu.addAction(act)
+	
+def newButton(text,slot=None,icon=None):
+	b = QPushButton(text)
+	if slot is not None:
+		b.clicked.connect(slot)
+	if icon is not None:
+		b.setIcon(newIcon(icon))
+	
+	return b
 
 def addWidgets(layout,wds):
     for w in wds:

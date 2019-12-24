@@ -7,9 +7,6 @@ from header.parameterUi import Ui_ParaDlg
 from libs_.utils import*
 from configparser import ConfigParser
 
-def addItems(cbb,items):
-    [cbb.addItem(it) for it in items]
-
 def addWidget(tree,idIt,idChild,widget):
     if idChild is not None:
         it = tree.topLevelItem(idIt).child(idChild)
@@ -17,11 +14,6 @@ def addWidget(tree,idIt,idChild,widget):
     else:
         it = tree.topLevelItem(idIt)
         tree.setItemWidget(it, 1, widget)
-
-def newCbb(items,parent):
-    cbb = QComboBox(parent)
-    addItems(cbb,items)
-    return cbb
 
 class Keys(object):
     def __init__(self):

@@ -15,5 +15,8 @@
 <file alias="teach">res/teach.png</file>
 <file alias="draw">res/draw.png</file>
 
+<file alias="shape">res/shape.png</file>
+<file alias="delete">res/delete.png</file>
+
 </qresource>
 </RCC>

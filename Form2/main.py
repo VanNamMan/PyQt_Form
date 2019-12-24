@@ -8,7 +8,8 @@ from resultDlg import*
 
 from libs_ import resources
 from libs_.utils import *
-from libs_.canvas import *
+from libs_.canvas import Canvas
+from libs_.treeShape import TreeShapeDlg
 
 import os,cv2,time,threading
 import numpy as np
@@ -41,36 +42,6 @@ class mainWindow(QMainWindow):
         self.statusBar().showMessage('%s %s' % (__appname__,__version__))
         self.statusBar().addPermanentWidget(self.lbCoor)
 
-        dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
-
-        self.paraDlg = ParaDlg()
-        self.paraDlg.saveConfigSignal.connect(self.saveConfigRequest)
-        self.paraDlg.loadConfigSignal.connect(self.loadConfigRequest)
-
-        self.paraDock = QDockWidget('parameter', self)
-        self.paraDock.setWidget(self.paraDlg)
-        self.paraDock.setFeatures(dockFeatures)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.paraDock)
-        toggleParaDock = self.paraDock.toggleViewAction()
-        self.paraDock.setMinimumWidth(200)
-        self.paraDock.hide()
-        #  action
-        action = partial(newAction,self)
-        auto = action("auto",self.showAuto,"a","home")
-        teaching = action("teaching",self.showTeaching,"s","teach")
-        addActions(self.ui.menuSetting,[auto,teaching,toggleParaDock])
-        # triggered
-        self.ui.actionopen.setShortcut("ctrl+o")
-        self.ui.actiondraw.setShortcut("w")
-        addTriggered(self.ui.actionopen,self.openFile)
-        addTriggered(self.ui.actiondraw,self.drawing)
-        # Icon
-        self.ui.actionopen.setIcon(newIcon("open"))
-        self.ui.actionsave.setIcon(newIcon("save"))
-        self.ui.actionexit.setIcon(newIcon("quit"))
-        self.ui.actionversion.setIcon(newIcon("version"))
-        self.ui.actioninfomation.setIcon(newIcon("info"))
-        self.ui.actiondraw.setIcon(newIcon("draw"))
         # central widget
         self.stacker = QStackedWidget(self)
 
@@ -84,9 +55,9 @@ class mainWindow(QMainWindow):
         self.autoWidget.setLayout(hlayout)
 
         self.teachWidget = QWidget(self)
-        self.frame_teaching = Canvas(self)
+        self.canvas = Canvas(self)
         layout = QVBoxLayout()
-        layout.addWidget(self.frame_teaching)
+        layout.addWidget(self.canvas)
         self.teachWidget.setLayout(layout)
 
         self.stacker.addWidget(self.autoWidget)
@@ -94,20 +65,62 @@ class mainWindow(QMainWindow):
 
         self.setCentralWidget(self.stacker)
 
+        dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
+
+        self.paraDlg = ParaDlg()
+        self.paraDlg.saveConfigSignal.connect(self.saveConfigRequest)
+        self.paraDlg.loadConfigSignal.connect(self.loadConfigRequest)
+
+        self.paraDock = QDockWidget('parameter', self)
+        self.paraDock.setWidget(self.paraDlg)
+        self.paraDock.setFeatures(dockFeatures)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.paraDock)
+        toggleParaDock = self.paraDock.toggleViewAction()
+        self.paraDock.setMinimumWidth(200)
+        self.paraDock.hide()
+
+        self.treeShape = TreeShapeDlg(self)
+
+        self.treeDock = QDockWidget('listShape', self)
+        self.treeDock.setWidget(self.treeShape)
+        self.treeDock.setFeatures(dockFeatures)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.treeDock)
+        toggleParaTree = self.treeDock.toggleViewAction()
+        self.treeDock.setMinimumWidth(200)
+        self.treeDock.hide()
+        #  action
+        action = partial(newAction,self)
+        auto = action("auto",self.showAuto,"a","home")
+        teaching = action("teaching",self.showTeaching,"s","teach")
+        addActions(self.ui.menuSetting,[auto,teaching,toggleParaDock,toggleParaTree])
+        # triggered
+        self.ui.actionopen.setShortcut("ctrl+o")
+        self.ui.actiondraw.setShortcut("w")
+        addTriggered(self.ui.actionopen,self.openFile)
+        addTriggered(self.ui.actiondraw,self.drawing)
+        # Icon
+        self.ui.actionopen.setIcon(newIcon("open"))
+        self.ui.actionsave.setIcon(newIcon("save"))
+        self.ui.actionexit.setIcon(newIcon("quit"))
+        self.ui.actionversion.setIcon(newIcon("version"))
+        self.ui.actioninfomation.setIcon(newIcon("info"))
+        self.ui.actiondraw.setIcon(newIcon("draw"))
+
         self.resultDlg.ui.but_start.setIcon(newIcon("start"))
         self.resultDlg.ui.but_stop.setIcon(newIcon("stop"))
         self.resultDlg.ui.but_reset.setIcon(newIcon("reset"))
         toggleParaDock.setIcon(newIcon("setting"))
+        toggleParaTree.setIcon(newIcon("shape"))
 
         # tracking , signal teaching
-        self.frame_teaching.setTracking(True)
-        self.frame_teaching.addRoiSignal.connect(self.crop)
-        self.frame_teaching.cropSignal.connect(self.crop)
-        self.frame_teaching.computeAreaSignal.connect(self.computeArea)
-        self.frame_teaching.computeDistanceSignal.connect(self.computeDistance)
-        self.frame_teaching.computeMeanSignal.connect(self.computeMean)
+        self.canvas.setTracking(True)
+        self.canvas.newShapeSignal.connect(self.treeShape.newShape)
+        self.canvas.deleteShapeSignal.connect(self.treeShape.deleteShape)
+        self.canvas.selectedShapeSignal.connect(self.treeShape.selectedShape)
         # 
         self.statusSignal.connect(self.statusRequest)
+        self.ui.actionopen.setEnabled(False)
+        self.ui.actiondraw.setEnabled(False)
         # variable
         self.mInput = None
         self.paraDlg.update()
@@ -117,33 +130,31 @@ class mainWindow(QMainWindow):
         text = "%s %s"%(getStrTime(),text)
         self.resultDlg.ui.listWidget.addItem(text)
 
-    def crop(self):
-        shape = self.frame_teaching.shape
-        x,y,w,h = shape.x(),shape.y(),shape.width(),shape.height()
-        mCrop = self.mInput[y:y+h,x:x+w]
-        filename = "Image/mCrop%s"%ext
-        cv2.imwrite(filename,mCrop)
-        self.statusBar().showMessage("Image saved at %s"%filename)
+    def showTracking(self,text):
+        self.lbCoor.setText(text)
 
-    def computeArea(self):
-        pass
-    def computeDistance(self):
-        pass
-    def computeMean(self):
-        pass
-    
     def showTeaching(self):
         self.stacker.setCurrentWidget(self.teachWidget)
         self.ui.actionopen.setEnabled(True)
         self.ui.actiondraw.setEnabled(True)
+
+        self.treeDock.show()
+        self.paraDock.show()
     
     def showAuto(self):
         self.stacker.setCurrentWidget(self.autoWidget)
         self.ui.actionopen.setEnabled(False)
         self.ui.actiondraw.setEnabled(False)
+
+        self.treeDock.hide()
+        self.paraDock.hide()
     
     def drawing(self):
-        self.frame_teaching.setEditing(True)
+        if self.canvas.image is not None:
+            self.canvas.setEditing(not self.canvas.edit)
+            self.canvas.drawing = False
+            self.canvas.setEnableMenu(False)
+            self.canvas.drawShapes(self.canvas.image.copy())
 
     def statusRequest(self,stt):
         if stt == self.NORMAL :
@@ -163,17 +174,18 @@ class mainWindow(QMainWindow):
         if filename:
             print(filename)
             self.mInput = cv2.imread(filename)
-            self.frame_teaching.showImage(self.mInput)
+            self.canvas.showImage(self.mInput)
+            self.statusBar().showMessage(filename)
     
     def saveConfigRequest(self,bSave):
         if(bSave):
-            QMessageBox.information(self,"Save Parameter","Save Parameter Done")
+            QMessageBox.information(self,"Save Parameter","Done Save Parameter ")
         else:
             QMessageBox.information(self,"Save Parameter","Save Parameter Fail")
 
     def loadConfigRequest(self,bLoad):
         if(bLoad):
-            QMessageBox.information(self,"Load Parameter","Load Parameter Done")
+            QMessageBox.information(self,"Load Parameter","Done Load Parameter ")
         else:
             QMessageBox.information(self,"Load Parameter","Load Parameter Fail")
 
@@ -181,6 +193,6 @@ if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     MainWindow = mainWindow()
-    MainWindow.showMaximized()
+    MainWindow.showNormal()
     sys.exit(app.exec_())
 

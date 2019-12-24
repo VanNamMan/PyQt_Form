@@ -173,7 +173,7 @@ class mainWindow(QMainWindow):
         ,"Image File (*.jpg *.png *.bmp)")
         if filename:
             print(filename)
-            self.mInput = cv2.imread(filename)
+            self.mInput = cv2.imread(filename,0)
             self.canvas.showImage(self.mInput)
             self.statusBar().showMessage(filename)
     

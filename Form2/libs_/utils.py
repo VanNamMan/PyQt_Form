@@ -6,6 +6,9 @@ import cv2,os,time,threading
 import pandas as pd
 import numpy as np
 
+from scipy import misc
+from PIL import ImageQt
+
 class HashableQListWidgetItem(QListWidgetItem):
 
     def __init__(self, *args):
@@ -76,7 +79,7 @@ def runThread(target,args):
 def showImage(image,label):
 	width , height = label.width(),label.height()
 
-	h,w,channel = image.shape
+	h,w = image.shape[:2]
 
 	s = min(width/w,height/h)
 
@@ -85,12 +88,15 @@ def showImage(image,label):
 
 	# t0 = time.time()
 	new_img = cv2.resize(image,(new_w,new_h))
-	new_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2RGB)
 	# print(time.time()-t0)
-	qim = QImage(new_img.data,new_w,new_h,channel*new_w, QImage.Format_RGB888)
-	# qim = QImage(image.data,w,h,channel*w, QImage.Format_RGB888)
-
-	qpix = QPixmap(qim)
+	if len(image.shape) == 2:
+		new_img = cv2.cvtColor(new_img, cv2.COLOR_GRAY2RGB)
+		qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(new_img)))
+	else:
+		channel = image.shape[-1]
+		new_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2RGB)
+		qim = QImage(new_img.data,new_w,new_h,channel*new_w, QImage.Format_RGB888)
+		qpix = QPixmap(qim)
 
 	label.setPixmap(qpix)
 

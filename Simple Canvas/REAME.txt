@@ -1,0 +1,11 @@
+pip install pillow
+pip install pyautogui
+pip install opencv-contrib-python
+pip install numpy
+
+pyrcc5 -o resources.py resources.qrc
+
+python screen_capture.py
+
+python gui.py
+

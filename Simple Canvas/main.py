@@ -1,5 +1,9 @@
 from utils import *
+from canvas import Canvas
+from vision import process
 import resources
+
+print("System : ",os.name)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -19,6 +23,8 @@ class MainWindow(QMainWindow):
 
         self.canvas = Canvas(self)
         self.canvas.mouseMoveSignal.connect(self.mouseMove)
+        self.canvas.testActionSignal.connect(self.test)
+        self.canvas.cropActionSignal.connect(self.cropImage)
 
         self.stacker = QStackedWidget(self)
         addWidgets(self.stacker,[self.auto,self.manual,self.canvas,self.data])
@@ -62,6 +68,21 @@ class MainWindow(QMainWindow):
         addActions(edit,[editing,self.canvas.actions.test
                 ,self.canvas.actions.testAll,self.canvas.actions.delete])
 
+    def cropImage(self,shape):
+        x,y,w,h = shape.cvRect
+        cropped = self.canvas.mat[y:y+h,x:x+w]
+        # filename,_ = QFileDialog.getSaveFileName(self,"Save as",os.getcwd(),"Image (*.png)")
+        cv2.imwrite("demo/cropped.png",cropped)
+        self.statusBar().showMessage("image saved at ...",5000)
+        pass
+    def test(self,shape):
+        config = shape.config
+        mat = process(self.canvas.mat,shape.functions,config,
+                draw_match=True,draw_box=True,lw=4)
+        if isinstance(mat,np.ndarray):
+            wd = cv2.namedWindow("",cv2.WINDOW_FREERATIO)
+            cv2.imshow("",mat)
+            cv2.waitKey(0)
     def mouseMove(self,text):
         self.lbCoor.setText(text)
     def openFile(self):

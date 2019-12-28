@@ -1,10 +1,14 @@
 from utils import *
+import resources
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow,self).__init__()
         self.setWindowTitle("Automation 2G - Vision Master")
         self.setGeometry(QRect(0,0,640,480))
+
+        self.lbCoor = QLabel("",self)
+        self.statusBar().addPermanentWidget(self.lbCoor)
         
         self.auto   = QWidget()
         gridlayout  = QGridLayout()
@@ -14,6 +18,7 @@ class MainWindow(QMainWindow):
         self.data   = QWidget()
 
         self.canvas = Canvas(self)
+        self.canvas.mouseMoveSignal.connect(self.mouseMove)
 
         self.stacker = QStackedWidget(self)
         addWidgets(self.stacker,[self.auto,self.manual,self.canvas,self.data])
@@ -36,7 +41,7 @@ class MainWindow(QMainWindow):
         )
 
         action    = partial(newAction,self)
-        open_      = action("Open",self.openFile,"ctrl+o","open",False)
+        open_     = action("Open",self.openFile,"ctrl+o","open",False)
         auto      = action("Home",self.switchWidget,"ctrl+a","home")
         teach     = action("Teaching",self.switchWidget,"ctrl+t","teach")
         data      = action("Data",self.switchWidget,"ctrl+d","data")
@@ -54,9 +59,11 @@ class MainWindow(QMainWindow):
 
         addActions(file,[open_])
         addActions(view,[auto,manual,teach,data])
-        addActions(edit,[editing])
+        addActions(edit,[editing,self.canvas.actions.test
+                ,self.canvas.actions.testAll,self.canvas.actions.delete])
 
-    
+    def mouseMove(self,text):
+        self.lbCoor.setText(text)
     def openFile(self):
         filename,_ = QFileDialog.getOpenFileName(self,"Select File",os.getcwd()
                 ,"Image File (*jpg *png)")

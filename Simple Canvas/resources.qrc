@@ -11,9 +11,12 @@
 <file alias="save">res/save.png</file>
 <file alias="teach">res/teach.png</file>
 <file alias="home">res/home.png</file>
+<file alias="manual">res/manual.png</file>
+<file alias="data">res/data.png</file>
 <file alias="apply">res/apply.png</file>
 <file alias="test">res/test.png</file>
 <file alias="testAll">res/testAll.png</file>
+<file alias="delete">res/delete.png</file>
 
 </qresource>
 </RCC>

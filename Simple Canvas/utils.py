@@ -145,6 +145,7 @@ class BBox(QDialog):
 class Shape(QRect):
     def __init__(self,rect):
         super(Shape,self).__init__(rect)
+        self.rect                     = rect
         self.cvRect                   = None
         self.functions                = []
         self.config                   = ConfigParser()
@@ -158,6 +159,11 @@ class Shape(QRect):
         self.select_fill_color        = DEFAULT_SELECT_FILL_COLOR
         self.visible_fill_color       = DEFAULT_VISIBLE_FILL_COLOR
         
+    def scaled_(self,scale,w,h):
+        sx,sy = scale
+        for i in range(4):
+            p = self.points[i]
+            self.points[i] = QPoint(int(p.x()*sx),int(p.y()*sy))
 
     def drawVertex(self, path, i):
         d = 10
@@ -193,11 +199,12 @@ class Shape(QRect):
             painter.fillPath(line_path, color)
 
 class Canvas(QWidget):
-    newShape = pyqtSignal()
-    addShape = pyqtSignal()
-    deleteShape = pyqtSignal()
-    mouseMoveSignal = pyqtSignal(str)
-
+    newShape                = pyqtSignal()
+    addShape                = pyqtSignal()
+    deleteShape             = pyqtSignal()
+    selectedShapeSignal     = pyqtSignal(bool)
+    mouseMoveSignal         = pyqtSignal(str)
+    
     def __init__(self,*args,**kwargs):
         super(Canvas,self).__init__(*args,**kwargs)
         self.setMouseTracking(True)
@@ -206,16 +213,22 @@ class Canvas(QWidget):
         self.mat           = None
         self.paint_        = QPainter()
         self.shapes        = []
-        self.scale         = 1.0
+        self.width_        = None
+        self.height_       = None
+        self.width_0        = None
+        self.height_0       = None
         self.shapeSelected = None
         self.edit          = False
         self.drawing       = False
         self.verified      = False
         self.tl            = QPoint()
         self.br            = QPoint()
+        self.scale         = (1.,1.)
         self.bbox          = BBox()
         self.curPos        = None
         self.contextMenu   = QMenu()
+        self.items         = []
+        self.current       = None
 
         action             = partial(newAction,self)
         test               = action("Test",self.test,"a","test",False)
@@ -261,8 +274,58 @@ class Canvas(QWidget):
         self.but_save.setMaximumWidth(w)
         self.but_apply.setMaximumWidth(w)
         self.setLayout(layout)
+
+        # 
+        self.selectedShapeSignal.connect(self._selectedShape)
+        self.newShape.connect(self._newShape)
+        self.listShape.itemClicked.connect(self.itemClicked)
         pass
-    
+
+    def itemClicked(self,item):
+        index = self.items.index(item)
+        for i,shape in enumerate(self.shapes):
+            if i == index:
+                shape.selected = True
+                self.shapeSelected = shape
+            else:
+                shape.selected = False
+        
+    def _newShape(self):
+        shape = self.current
+        tl           = self._transformCvPos(self.tl)
+        br           = self._transformCvPos(self.br)
+        cvRect       = (tl.x(),tl.y(),br.x()-tl.x(),br.y()-tl.y())
+        str_rect     = "%d,%d,%d,%d"%cvRect
+        text         = "shape-%d [%s]"%(len(self.shapes),str_rect)
+
+        item = QListWidgetItem(text)
+        self.listShape.addItem(item)
+        self.parameter.items.crop.setText(str_rect)
+        shape.cvRect = cvRect
+        self.shapes.append(shape)
+        self.items.append(item)
+        pass
+    def _selectedShape(self,selected):
+        if selected:
+            i = self.shapes.index(self.shapeSelected)
+            item = self.listShape.item(i)
+            item.setSelected(True)
+            self.actions.test.setEnabled(True)
+            self.actions.testAll.setEnabled(True)
+            self.actions.delete.setEnabled(True)
+            str_rect = "%d,%d,%d,%d"%self.shapeSelected.cvRect
+            self.parameter.items.crop.setText(str_rect)
+
+            for i,shape in enumerate(self.shapes):
+                if shape != self.shapeSelected:
+                    shape.selected = False
+                    self.listShape.item(i).setSelected(False)
+        else:
+            self.shapeSelected = None
+            self.actions.test.setEnabled(False)
+            self.actions.testAll.setEnabled(False)
+            self.actions.delete.setEnabled(False)
+
     def apply(self):
         if self.shapeSelected is None:
             return
@@ -287,7 +350,7 @@ class Canvas(QWidget):
             "Type"     : item.convert.currentText()
         }
         self.shapeSelected.config["Binary"]   = {
-            "Threshold" : item.binary_threshold.text(),
+            "Threshold": item.binary_threshold.text(),
             "Method"   : item.binary_method.currentText(),
             "Type"     : item.binary_type.currentText(),
             "BlockSize": item.binary_blocksize.text(),
@@ -321,8 +384,9 @@ class Canvas(QWidget):
         shape = self.shapeSelected
         config = shape.config
         mat = process(self.mat,shape.functions,config)
-        cv2.imshow("",mat)
-        cv2.waitKey()
+        if isinstance(mat,np.ndarray):
+            cv2.imshow("",mat)
+            cv2.waitKey()
         pass
     def testAll(self):
         pass
@@ -347,33 +411,45 @@ class Canvas(QWidget):
         arr = arr[:,:,::-1]
         return arr
     def scaled_(self):
-        if self.pixmap is not None:
-            self.origin = self.listShape.geometry().topRight()
-            w = self.width() - self.origin.x()
-            h = self.height() - self.origin.y()
+        if self.pixmap is not None:            
+            w  = self.width_
+            h  = self.height_
             self.scaled = self.pixmap.scaled(w,h)
+
+            for shape in self.shapes:
+                self._transformInv(shape)
+        
     def loadPixmap(self,pixmap):
         self.pixmap = pixmap
         self.mat    = self.QPixmapToCvMat(pixmap)
         self.scaled_()
         self.repaint()
-    def offsetToCenter(self):
-        s = self.scale
-        w, h = self.pixmap.width() * s, self.pixmap.height() * s
-        aw = self.width() - self.listShape.width()
-        ah = self.height()
-        x = (aw - w) / (4*s) if aw > w else 0
-        y = (ah - h) / (4*s) if ah > h else 0
-        return QPointF(x, y)
-    def transformPos(self,pos):
-        w,h   = self.mat.shape[:2][::-1]
-        aw,ah = self.width()-self.origin.x(),self.height()-self.origin.y()
-        px    = pos.x()-self.origin.x()
-        py    = pos.y()-self.origin.y()
-        rx,ry = px/aw,py/ah
+    
+    def _transform(self,pos):
+        return pos - self.origin
+    def _transformCvPos(self,pos):
+        w,h        = self.mat.shape[:2][::-1]
+        aw,ah      = self.width_,self.height_
+        px         = pos.x()
+        py         = pos.y()
+        rx,ry      = px/aw,py/ah
         return QPoint(int(rx*w),int(ry*h))
     
+    def _transformInv(self,shape):
+        w,h         = self.mat.shape[:2][::-1]
+        aw,ah       = self.width_,self.height_
+        sx,sy,sw,sh = shape.cvRect
+        rx,ry,rw,rh       = sx/w,sy/h,sw/w,sh/h
+        x,y,w,h     = int(rx*aw),int(ry*ah),int(rw*aw),int(rh*ah)
+        rect = QRect(x,y,w,h) 
+        shape.points = [rect.topLeft(),rect.topRight(),rect.bottomRight(),rect.bottomLeft()]
+        shape.rect   = rect
+    
     def resizeEvent(self,ev):
+        self.origin = self.listShape.geometry().topRight()
+        w,h         = self.width()-self.origin.x(),self.height()-self.origin.y()
+        self.width_ = w
+        self.height_ = h
         self.scaled_()
         super(Canvas, self).resizeEvent(ev)
 
@@ -393,13 +469,14 @@ class Canvas(QWidget):
         p.setPen(QPen(Qt.black,2,Qt.DashDotLine))
         p.setBrush(QBrush(Qt.green,Qt.BDiagPattern))
         self.origin = self.listShape.geometry().topRight()
-        p.drawPixmap(self.origin.x(),self.origin.y(),self.scaled)
+        p.translate(self.origin)
+        p.drawPixmap(0,0,self.scaled)
         if self.curPos is not None and self.edit and not self.drawing:
             p.setPen(Qt.black)
             pos = self.curPos
-            pos1 = QPoint(self.origin.x(),pos.y())
+            pos1 = QPoint(0,pos.y())
             pos2 = QPoint(self.width(),pos.y())
-            pos3 = QPoint(pos.x(),self.origin.y())
+            pos3 = QPoint(pos.x(),0)
             pos4 = QPoint(pos.x(),self.height())
             p.drawLine(pos1,pos2)
             p.drawLine(pos3,pos4)
@@ -423,59 +500,47 @@ class Canvas(QWidget):
         p.end()
 
     def mouseMoveEvent(self,ev):
-        self.curPos = ev.pos()
+        pos = self._transform(ev.pos())
+        self.curPos = pos
         text = "%dx%d"%(self.curPos.x(),self.curPos.y())
         self.mouseMoveSignal.emit(text)
         if self.drawing :
             self.setCursor(CURSOR_DRAW)
-            self.br = ev.pos()
+            self.br = self.curPos
         else:
             for shape in self.shapes:
-                if self.inShape(ev.pos(),shape):
+                if self.inShape(pos,shape):
                     shape.visible = True
                 else:
                     shape.visible = False
 
     def mousePressEvent(self,ev):
+        pos = self._transform(ev.pos())
         if ev.button() == Qt.LeftButton:
             if not self.drawing and self.edit:
                 self.drawing = True
-                self.tl = ev.pos()
-                self.br = ev.pos()
+                self.tl = pos
+                self.br = pos
             if not self.drawing and not self.edit:
-                for shape in self.shapes:
-                    index = self.shapes.index(shape)
-                    if self.inShape(ev.pos(),shape):
+                idx = -1
+                for i,shape in enumerate(self.shapes):
+                    if self.inShape(pos,shape):
                         shape.selected = True
                         self.shapeSelected = shape
-                        self.listShape.item(index).setSelected(True)
-
-                        self.actions.test.setEnabled(True)
-                        self.actions.testAll.setEnabled(True)
-                        self.actions.delete.setEnabled(True)
-                    else:
-                        shape.selected = False
-                        self.listShape.item(index).setSelected(False)
-
-                        self.actions.test.setEnabled(False)
-                        self.actions.testAll.setEnabled(False)
-                        self.actions.delete.setEnabled(False)
+                        self.selectedShapeSignal.emit(True)
+                        idx = i
+                        break
+                if idx == -1:
+                    self.selectedShapeSignal.emit(False)
                 
     def mouseReleaseEvent(self,ev):
+        pos = self._transform(ev.pos())
         if ev.button() == Qt.LeftButton and self.drawing and self.isDraw():
             if self.bbox.popUp():
                 self.cancelEdit()
                 self.setCursor(CURSOR_DEFAULT)
-                tl = self.transformPos(self.tl)
-                br = self.transformPos(self.br)
-                shape = Shape(QRect(self.tl,self.br))
-                cvRect = (tl.x(),tl.y(),br.x()-tl.x(),br.y()-tl.y())
-                str_rect = "%d,%d,%d,%d"%cvRect
-                text    = "shape-%d [%s]"%(len(self.shapes),str_rect)
-                item = self.listShape.addItem(text + str_rect)
-                self.parameter.items.crop.setText(str_rect)
-                shape.cvRect = cvRect
-                self.shapes.append(shape)
+                self.current = Shape(QRect(self.tl,self.br))
+                self.newShape.emit()
             else:
                 self.cancelEdit()
                 self.setCursor(CURSOR_DEFAULT)
@@ -490,8 +555,8 @@ class Canvas(QWidget):
     def isDraw(self):
         return True if self.tl != self.br else False
     def inShape(self,pos,shape):
-        tl = shape.topLeft()
-        br = shape.bottomRight()
+        tl = shape.rect.topLeft()
+        br = shape.rect.bottomRight()
         if tl.x() < pos.x() < br.x() and tl.y() < pos.y() < br.y():
             return True
         else:

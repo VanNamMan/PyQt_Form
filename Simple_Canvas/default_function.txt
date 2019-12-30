@@ -1,0 +1,9 @@
+crop
+convert
+blur
+binary                    
+morphology
+findContours
+removeBlobs
+ocr
+matching

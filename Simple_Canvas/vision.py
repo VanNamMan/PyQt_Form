@@ -1,15 +1,30 @@
 import cv2
 import numpy as np
-from utils import str2ListInt,inSide,drawRect,drawText
+from utils import *
 
+# function_tools = {
+#     "crop"             : crop, 
+#     "convert"          : convert,
+#     "binary"           : binary,
+#     "blur"             : blur,
+#     "morphology"       : morph,
+#     "findContours"     : findContours,
+#     "ocr"              : ocr,
+#     "matching"         : matching,
+#     "removeBlobs"      : removeBlobs
+# }
+
+class OCR(object):
+    def __init__(self):
+        self.text = ""
 class Remove:
     def __init__(self):
         self.boxs = []
         self.cnts = []
 class Macth:
     def __init__(self):
-        self.box   = None
-        self.score = 0.0
+        self.boxs   = None
+        self.scores = 0.0
         self.res   = False
  
 class Result(object):
@@ -26,14 +41,16 @@ class Result(object):
         self.remove   = remove
 
 def crop(mat,config):
-    x,y,w,h = str2ListInt(config["Crop"]["box"])
+    cfg     = config["crop"]
+    x,y,w,h = str2ListInt(cfg["Box"])
     return mat[y:y+h,x:x+w]
 
 def isGray(mat):
     return len(mat.shape) == 1 
 
 def convert(mat,config):
-    type_ = config["Convert"]["type"]
+    cfg         = config["convert"]
+    type_ = cfg["Type"]
     if type_   == "bgr2gray":
         if isGray(mat):
             return mat
@@ -50,10 +67,11 @@ def convert(mat,config):
             return mat
 
 def binary(mat,config):
-    method       = config["Binary"]["method"]
-    thresh       = int(config["Binary"]["threshold"])
-    type_        = config["Binary"]["type"]
-    blockSize    = int(config["Binary"]["blocksize"])
+    cfg          = config["binary"]
+    method       = cfg["Method"]
+    thresh       = int(cfg["Threshold"])
+    type_        = cfg["Type"]
+    blockSize    = int(cfg["BlockSize"])
     if type_ == "normal":
         type_ = cv2.THRESH_BINARY
     elif type_ == "inv":
@@ -66,8 +84,9 @@ def binary(mat,config):
         return cv2.adaptiveThreshold(mat,255,cv2.ADAPTIVE_THRESH_MEAN_C,type_,blockSize,thresh)
 
 def blur(mat,config):
-    method       = config["Blur"]["method"]
-    size         = int(config["Blur"]["size"])
+    cfg          = config["blur"]
+    method       = cfg["Method"]
+    size         = int(cfg["Size"])
     if method    == "blur":
         return cv2.blur(mat,(size,size))
     elif method  == "median":
@@ -76,9 +95,10 @@ def blur(mat,config):
         return cv2.GaussianBlur(mat,(size,size),0)
 
 def morph(mat,config):
-    method       = config["Morph"]["method"]
-    size         = int(config["Morph"]["size"])
-    iter         = int(config["Morph"]["iter"])
+    cfg          = config["morph"]
+    method       = cfg["Method"]
+    size         = int(cfg["Size"])
+    iter         = int(cfg["Iter"])
     kernel = np.ones((size,size),np.uint8) 
     if method    == "dilate":
         return cv2.dilate(mat,kernel,iterations=iter)
@@ -96,8 +116,9 @@ def morph(mat,config):
         return cv2.morphologyEx(mat, cv2.MORPH_BLACKHAT, kernel,iterations=iter)
 
 def findContours(mat,config):
-    mode                = config["Contours"]["mode"]
-    method              = config["Contours"]["method"]
+    cfg                 = config["contours"]
+    mode                = cfg["Mode"]
+    method              = cfg["Method"]
     if mode == "external":
         mode = cv2.RETR_EXTERNAL
     elif mode == "list":
@@ -113,71 +134,98 @@ def findContours(mat,config):
     return cnts
 
 def ocr(mat,config):
-    
-    pass
+    cfg         = config["ocr"]
+    lang        = cfg["Lang"]
+    oem         = cfg["Oem"]
+    psm         = cfg["Psm"]
+    ocr_config  = "-l %s --oem %s --psm %s"%(lang,oem,psm)
+    res         = OCR()
+    res.text    = ocr_(mat,ocr_config)
+    return res
+
 def matching(mat,config):
-    score               = float(config["Matching"]["score"])
-    file                = config["Matching"]["file"]
-    method              = eval('cv2.TM_CCOEFF_NORMED')
+    cfg                 = config["matching"]
+    score               = float(cfg["Score"])/100
+    file                = cfg["File"]
+    multiple            = eval(cfg["Multiple"])
+    method              = cv2.TM_CCOEFF_NORMED
     # if temp is None:
     temp                = cv2.imread(file,0)
     if not isGray(mat):
         img = cv2.cvtColor(mat,cv2.COLOR_BGR2GRAY)
     else:
         img = mat
+    
     w0,h0               = temp.shape[:2][::-1]
-    res                 = cv2.matchTemplate(img,temp,method)
-    _,max_val,_,max_loc = cv2.minMaxLoc(res)
-
+    result              = cv2.matchTemplate(img,temp,method)
+    
     res                 = Macth()
-    res.box             = list(max_loc) + [w0,h0]
-    res.score           = max_val
-    res.res             = True if max_val > score/100 else False
+    if not multiple:
+        _,max_val,_,max_loc = cv2.minMaxLoc(result)
+
+        res.boxs            = [list(max_loc) + [w0,h0]]
+        res.scores          = [max_val]
+        res.res             = [True if max_val > score else False]
+    else:
+        res.boxs   = []
+        res.scores = []
+        res.res    = []
+        loc = np.where( result >= score)
+        for pt in zip(*loc[::-1]):
+            x,y = pt
+            res.boxs.append([x,y,w0,h0])
+            res.scores.append(result[y,x])
+            res.res.append(True)
+
     return res
 
 def removeBlobs(cnts,config):
-    width               = str2ListInt(config["Remove"]["width"])
-    height              = str2ListInt(config["Remove"]["height"])
-    area                = str2ListInt(config["Remove"]["area"])
+    cfg                 = config["remove"]
+    width               = str2ListInt(cfg["Width"])
+    height              = str2ListInt(cfg["Height"])
+    area                = str2ListInt(cfg["Area"])
 
     res = Remove()
     for cnt in cnts :
         x,y,w,h = cv2.boundingRect(cnt)
+        s       = cv2.contourArea(cnt)
         if not inSide(w,width) : continue
-        if not inSide(w,width) : continue
-        if not inSide(w,width) : continue
+        if not inSide(h,width) : continue
+        if not inSide(s,area) : continue
         res.boxs.append([x,y,w,h])
         res.cnts.append(cnt)
     return res
 
-function_tools = {
-    "crop"             : crop, 
-    "convert"          : convert,
-    "binary"           : binary,
-    "blur"             : blur,
-    "morph"            : morph,
-    "findContours"     : findContours,
-    "ocr"              : ocr,
-    "matching"         : matching,
-    "removeBlobs"      : removeBlobs
-}
 
-def process(mat,lb_funcs,config
-            ,draw_box=False,draw_match=False
-            ,lw=2,fs=1,color=(0,255,0)):
-    copy = mat.copy()
-    dst = None
+lb_funcs                = readline("default_function.txt")
+functions               = [crop,convert,blur,binary,
+                            morph,findContours,removeBlobs,ocr,matching]
+function_tools          = {}
+for lb,func in zip(lb_funcs,functions):
+    function_tools[lb]  = func
+
+def test_process(mat,config
+                ,draw_box=False
+                ,draw_match=False
+                ,color=(0,255,0)
+                ,fs=1,lw=2):
+    copy     = mat.copy()
+    dst      = None
+    lb_funcs = config["function"]["functions"].split(",")
     for i,lb in enumerate(lb_funcs):
-        if i == 0:
-            dst = function_tools[lb](copy,config)
-        else:
-            dst = function_tools[lb](dst,config)
+        try:
+            if i == 0:
+                dst = function_tools[lb](copy,config)
+            else:
+                dst = function_tools[lb](dst,config)
+        except:
+            print("has a problem at %s"%lb)
 
     if isinstance(dst,np.ndarray):
         return dst
     else:
         if "crop" in lb_funcs:
-            x0,y0,_,_ = str2ListInt(config["Crop"]["box"])
+            x0,y0,_,_ = str2ListInt(config["crop"]["Box"])
         else:
             x0,y0 = 0,0
         if isinstance(dst,Remove) and draw_box:
@@ -186,12 +234,16 @@ def process(mat,lb_funcs,config
                 box[1]+=y0
                 drawRect(copy,box,lw=lw,color=color)
         if isinstance(dst,Macth) and draw_match:
-            res = dst.res
-            box = dst.box
-            box[0]+=x0
-            box[1]+=y0
-            x,y = box[:2]
-            drawRect(copy,box,lw=lw,color=color)
-            drawText(copy,"%s:%.2f"%(str(res),dst.score),(x,y))
+            res     = dst.res
+            scores  = dst.scores
+            boxs    = dst.boxs
+            for res_,score,box in zip(res,scores,boxs):
+                box[0]+=x0
+                box[1]+=y0
+                x,y = box[:2]
+                drawRect(copy,box,lw=lw,color=color)
+                drawText(copy,"%s:%.2f"%(str(res_),score),(x,y),fs=fs,lw=lw)
+        if isinstance(dst,OCR):
+            return dst
 
         return copy

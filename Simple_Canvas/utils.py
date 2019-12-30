@@ -11,9 +11,20 @@ import re
 import serial
 from functools import partial
 from qimage2ndarray import *
+from pytesseract import pytesseract
+import subprocess
+import shlex
 
 from scipy import misc
 from PIL import ImageQt
+
+def ocr_(mat,cfg):
+    txt = pytesseract.image_to_string(mat,config=cfg)
+    return txt
+def ocr_cmd(filename):
+    base,_ = os.path.splitext(filename)
+    cmd = "tesseract %s %s -l eng"%(filename,base)
+    subprocess.call(cmd,shell=True)
 
 class HashableQListWidgetItem(QListWidgetItem):
 
@@ -44,6 +55,14 @@ class struct(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+def readline(filename):
+    txts = []    
+    f = open(filename, "r")
+    for x in f:
+        x = x.strip().strip("\n")
+        txts.append(x)
+    return txts
+
 def getStrDateTime():
     return time.strftime("%d%m%y_%H%M%S")
 
@@ -51,12 +70,13 @@ def getStrTime():
     return time.strftime("%H:%M:%S")
 def inSide(x,tup):
     m,M = tup
-    if m == -1:
+    if M == -1:
+        if m == -1:
+            return True
+        else:
+            return m < x
+    elif m == -1:
         return x < M
-    elif M == -1:
-        return m < x
-    else :
-        return m < x < M
 def drawRect(mat,box,color=(0,255,0),lw=2):
     x,y,w,h = box
     cv2.rectangle(mat,(x,y),(x+w,y+h),color,lw)
@@ -74,12 +94,22 @@ def str2ListInt(string):
     return [int(l) for l in lst]
 
 def addItems(cbb,items):
-    [cbb.addItem(it) for it in items]
+    [cbb.addItem(it) for it in items if it]
 
 def newCbb(items,parent):
     cbb = QComboBox(parent)
     addItems(cbb,items)
     return cbb
+
+def newDialogButton(texts,slots,icons):
+    bb = QDialogButtonBox(Qt.Vertical)
+    for txt,slot,icon in zip(texts,slots,icons):
+        but = bb.addButton(txt,QDialogButtonBox.ApplyRole)
+        if slot is not None:
+            but.clicked.connect(slot)
+        if icon is not None:
+            but.setIcon(newIcon(icon))
+    return bb
 
 def newIcon(icon):
     return QIcon(':/' + icon)
@@ -162,11 +192,10 @@ def showImage(image,label):
     return s
 
 if __name__ == "__main__":
-    import sys
-    app = QApplication(sys.argv)
-    wd = QMainWindow()
-    canvas = Canvas(wd)
-    wd.setCentralWidget(canvas)
-    wd.show()
-    sys.exit(app.exec_())
+    # txts = readline("default_function.txt")
+    # print(txts)
+    config = ConfigParser()
+    config.read("demo/para.config")
+    camera = eval(config["Config"]["Camera"])
+    
     

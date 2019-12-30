@@ -17,6 +17,11 @@
 <file alias="test">res/test.png</file>
 <file alias="testAll">res/testAll.png</file>
 <file alias="delete">res/delete.png</file>
+<file alias="up">res/up.png</file>
+<file alias="down">res/down.png</file>
+<file alias="crop">res/crop.png</file>
+<file alias="font">res/font.png</file>
+<file alias="cancel">res/cancel.png</file>
 
 </qresource>
 </RCC>

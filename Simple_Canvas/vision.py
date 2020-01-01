@@ -372,7 +372,16 @@ def matching(src,config):
             res.boxs.append([x,y,w0,h0])
             res.scores.append(result[y,x])
             res.predicts.append(True)
-    res.mat = mat
+    res.mat         = mat
+    #  sorting boxs
+    _ , C        = sort_matching(res.boxs,res.scores,epsilon=50)
+
+    res.boxs        = []
+    res.scores      = []
+    for key,val in C.items():
+        b,s = val[-1]
+        res.boxs.append(b)
+        res.scores.append(s)
     return res
 
 def predict(src,config):
@@ -420,6 +429,7 @@ def test_process(mat,config
     results     = []
     visualizes  = []
     # ======================
+    start = time.time()
     for i,lb in enumerate(lb_funcs):
         if lb not in keys:
             print("Dont suport \"%s\" funtion"%lb)
@@ -433,6 +443,9 @@ def test_process(mat,config
                 results.append(dst)
             except:
                 print("has a problem at %s"%lb)
+    end = time.time()
+    dt = (end-start)*1000
+    print("time inferenc : %d ms"%dt)
     # ======================     
     return results,visualizes
 
@@ -442,19 +455,55 @@ def configProxy2dict(config):
         dict_[key] = eval(config[key])
     return dict_
 
+def sort_matching(boxs,scores,epsilon=10):
+    """
+    sorting and romve near boxs
+    """
+    def key_box(box):
+        return np.sqrt(box[0]**2+box[1]**2)
+    def key_score(x):
+        return x[1]
+    boxs = sorted(boxs,key=key_box)
+    i = 0
+    B = [(boxs[0],scores[0])]
+    C = {
+        0:[(boxs[0],scores[0])]
+    }
+    for j in range(len(boxs)):
+        tl1 = boxs[i][:2]
+        tl2 = boxs[j][:2]
+        b,s = boxs[j],scores[j]
+        if  distance(tl2,tl1) > epsilon:
+            B.append((b,s))
+            C[len(C)]    = [(b,s)]
+            i            = j
+        else:
+            C[len(C)-1].append((b,s))
+    
+    for key,val in C.items():
+        val     = sorted(val,key=key_score)
+        C[key]  = val
+
+    return B,C
+
 if __name__ == "__main__":
-    config      = ConfigParser()
-    config.read("demo/para.config")
-    config      = config["shape-0"]
-    config      = configProxy2dict(config)
-    print(config["function"]["Functions"])
-    mat         = cv2.imread("demo/1.jpg")
-    t0          = time.time()
-    res,vis     = test_process(mat,config)
-    dt          = (time.time()-t0)*1000
-    print("time inference : %d"%(dt))
-    wd          = cv2.namedWindow("",cv2.WINDOW_FREERATIO)
-    for v in vis:
-        cv2.imshow("",v)
-        cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    
+    pass
+    # config      = ConfigParser()
+    # config.read("demo/para.config")
+    # config      = config["shape-0"]
+    # config      = configProxy2dict(config)
+    # print(config["function"]["Functions"])
+    # mat         = cv2.imread("demo/1.jpg")
+    # m = Mat(mat)
+    # out = draw(m.mat,boxs=[[0,0,500,500]],lw=8)
+    # cv2.imwrite("mat.png",m.mat)
+    # t0          = time.time()
+    # res,vis     = test_process(mat,config)
+    # dt          = (time.time()-t0)*1000
+    # print("time inference : %d"%(dt))
+    # wd          = cv2.namedWindow("",cv2.WINDOW_FREERATIO)
+    # # for v in vis:
+    # cv2.imshow("",out)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()

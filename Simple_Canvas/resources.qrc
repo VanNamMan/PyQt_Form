@@ -22,6 +22,8 @@
 <file alias="crop">res/crop.png</file>
 <file alias="font">res/font.png</file>
 <file alias="cancel">res/cancel.png</file>
+<file alias="reset">res/reset.png</file>
+<file alias="grab">res/grab.png</file>
 
 </qresource>
 </RCC>

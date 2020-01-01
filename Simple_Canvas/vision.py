@@ -12,6 +12,7 @@ from utils import *
 #     "matching"         : matching,            8
 #     "removeBlobs"      : removeBlobs          9
 # }
+
 class Mat(object):
     def __init__(self,mat):
         self.__name__       = "mat"
@@ -418,10 +419,7 @@ def draw(mat,texts=[],boxs=[],cnts=None
     return mat
 
 def test_process(mat,config
-                ,draw_box=False
-                ,draw_match=False
-                ,color=(0,255,0)
-                ,fs=1,lw=2):
+                ,color=(0,255,0)):
     # ======================
     dst         = Mat(mat)
     lb_funcs    = config["function"]["Functions"].split(",")

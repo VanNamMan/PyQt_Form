@@ -4,6 +4,128 @@ import resources
 BB = QDialogButtonBox
 DEFAUT_COLOR = QColor(0,255,0,255)
 
+class BoxCamera(QDialog):
+    signal  = pyqtSignal(np.ndarray)
+    fpsSignal     = pyqtSignal(float)
+    def __init__(self,i,timeout,parent=None):
+        super(BoxCamera,self).__init__(parent)
+        self.setWindowTitle("Camera Dialog")
+        self.cap        = cv2.VideoCapture(i)
+        self.timeout    = timeout
+        self.visualize  = {"boxs":None,"visualizes":None}
+
+
+        layout          = QVBoxLayout()
+        self.frame      = QLabel(self)
+        self.frame.setAlignment(Qt.AlignCenter)
+
+
+        hlayoutTop      = QHBoxLayout()
+        self.cbb_camera = newCbb(["0","1","2"])
+        self.lb_fps     = QLabel("",self)
+        self.lb_fps.setMaximumHeight(50)
+        widgets = [
+            QLabel("Camera"),
+            self.cbb_camera,
+            QLabel("FPS : "),
+            self.lb_fps
+        ]
+        addWidgets(hlayoutTop,widgets)
+        widgetTop = QWidget()
+        widgetTop.setLayout(hlayoutTop)
+        widgetTop.setMaximumHeight(50)
+        widgetTop.setMaximumWidth(500)
+
+        hlayout         = QHBoxLayout()
+        self.but_start = newButton("Start",self.start,"start")
+        self.but_stopt = newButton("Stop",self.stop,"stop")
+        self.but_reset = newButton("Reset",self.reset,"reset")
+        self.but_grab = newButton("Grab",self.capture,"grab")
+        widgets = [
+            self.but_start,
+            self.but_stopt,
+            self.but_grab,
+            self.but_reset
+        ]
+        addWidgets(hlayout,widgets)
+        widgets = [
+            widgetTop,
+            self.frame,
+            hlayout
+        ]
+        addWidgets(layout,widgets)
+        self.setLayout(layout)
+        self.bStart = False
+        self.fps = 0
+        self.fpsSignal.connect(self.setFPS)
+    def setFPS(self,fps):
+        self.lb_fps.setText("%.2f"%fps)
+    def isOpened(self):
+        return self.cap.isOpened()
+    def capture(self):
+        mkdir("grab")
+        mat = self.grab()
+        if mat is not None:
+            filename        = "grab/%s.png"%getStrDateTime()
+            if cv2.imwrite(filename,mat):
+                print("image saved at %s"%filename)
+    def grab(self):
+        ret,mat = self.cap.read()
+        if ret:
+            return mat
+        else:
+            return None
+    def start(self):
+        self.bStart     = True
+        runThread(self.loop,args=())
+        pass
+    def stop(self):
+        self.bStart = False
+        pass
+    def reset(self):
+        pass
+    def release(self):
+        self.bStart  = False
+        time.sleep(0.01)
+        self.cap.release()
+    def loop(self):
+        print("loop camera started")
+        fps = 0
+        t0 = time.time()
+        while self.bStart and self.isOpened():
+            mat = self.grab()
+            if mat is not None:
+                boxs         = self.visualize["boxs"]
+                visualizes   = self.visualize["visualizes"]
+                if visualizes is not None:
+                    copy = mat.copy()
+                    for box,vis in zip(boxs,visualizes):
+                        x,y,w,h = box
+                        copy[y:y+h,x:x+w] = vis
+                    showImage(copy,self.frame)
+                else:
+                    showImage(mat,self.frame)
+
+                # emit to run process
+                self.signal.emit(self.grab())
+
+                #  emit FPS
+                fps+=1
+                if(time.time() - t0) >= 1.0:
+                    self.fps = fps
+                    self.fpsSignal.emit(self.fps)
+                    fps = 0
+                    t0 = time.time()
+
+            time.sleep(self.timeout)
+        pass
+    
+    def __del__(self):
+        self.release()
+    def closeEvent(self):
+        self.release()
+        pass
+
 class ColorDialog(QColorDialog):
 
     def __init__(self, parent=None):
@@ -163,24 +285,56 @@ class Items(object):
         if filename:
             self.match_filename.setText(filename)
 
-class Frame(QLabel):
-    def __init__(self,parent=None):
-        super(Frame,self).__init__(parent)
-        self.setAlignment(Qt.AlignCenter)
+# class Frame(QLabel):
+#     def __init__(self,parent=None):
+#         super(Frame,self).__init__(parent)
+#         self.setAlignment(Qt.AlignCenter)
 
-    def show(self,mat):
-        pixmap  = ndarray2pixmap(mat)
-        self.setPixmap(pixmap)
-        pass
-
+#     def show(self,mat):
+#         pixmap  = ndarray2pixmap(mat)
+#         self.setPixmap(pixmap)
+#         pass
 class BoxProcessLog(QDialog):
     def __init__(self,parent=None):
         super(BoxProcessLog,self).__init__(parent)
         self.list           = QListWidget(self)
-        self.but_clear      = newButton("Clear",self.clear,"clear")
 
+        grid                = QGridLayout()
+        self.lb_numOK       = QLabel("OK",self)
+        self.lb_numNG       = QLabel("NG",self)
+        self.lb_numTotal    = QLabel("Total",self)
+        self.numOK          = QLabel("0",self)
+        self.numNG          = QLabel("0",self)
+        self.numTotal       = QLabel("0",self)
+        grid.addWidget(self.lb_numOK,0,0)
+        grid.addWidget(self.numOK,0,1)
+        grid.addWidget(self.lb_numNG,1,0)
+        grid.addWidget(self.numNG,1,1)
+        grid.addWidget(self.lb_numTotal,2,0)
+        grid.addWidget(self.numTotal,2,1)
+
+        style = "color:green;font:bold 24px"
+        self.lb_numOK.setStyleSheet(style)
+        self.numOK.setStyleSheet(style)
+        style = "color:red;font:bold 24px"
+        self.lb_numNG.setStyleSheet(style)
+        self.numNG.setStyleSheet(style)
+        style = "color:black;font:bold 24px"
+        self.lb_numTotal.setStyleSheet(style)
+        self.numTotal.setStyleSheet(style)
+
+
+        self.lb_result      = QLabel("Wait",self)
+        self.lb_result.setAlignment(Qt.AlignCenter)
+        self.lb_result.setMinimumHeight(300)
+        style = "color:black;font:bold 72px;border-width:3px;border-color:black;border-style: outset"
+        self.lb_result.setStyleSheet(style)
+
+        self.but_clear      = newButton("Clear",self.clear,"clear")
         
         widget = [
+            grid,
+            self.lb_result,
             self.list,
             self.but_clear
         ]
@@ -188,11 +342,27 @@ class BoxProcessLog(QDialog):
         addWidgets(layout,widget)
 
         self.setLayout(layout)
+        self.showResult([8,9,17],False)
     
     def clear(self):
         self.list.clear()
     def log(self,text):
         self.list.addItem("%s : %s"%(getStrTime,text))
+    
+    def showResult(self,nums,res=None):
+        style = "color:black;font:bold 72px;border-width:3px;background:%s \
+        ;border-color:black;border-style: outset"
+        ok , ng ,total = nums
+        self.numOK.setText("%d"%ok)
+        self.numNG.setText("%d"%ng)
+        self.numTotal.setText("%d"%total)
+        if res is None:
+            self.lb_result.setStyleSheet(style%"yellow")
+        else:
+            if res :
+                self.lb_result.setStyleSheet(style%"green")
+            else:
+                self.lb_result.setStyleSheet(style%"red")
 
 class BoxParameter(QTreeWidget):
     def __init__(self,parent=None):
@@ -583,7 +753,8 @@ if __name__ == "__main__":
     QColor().red
     import sys
     app = QApplication(sys.argv)
-    wd = QMainWindow()
-    canvas = BoxFontColor(wd)
+    # wd = QMainWindow()
+    canvas = BoxProcessLog()
+    # wd.setCentralWidget(canvas)
     canvas.showNormal()
     sys.exit(app.exec_())

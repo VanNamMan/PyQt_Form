@@ -1,5 +1,5 @@
 from utils import *
-from bbox import BoxTeaching,BoxFontColor,BoxProcessLog
+from bbox import *
 from canvas import Canvas,Shape
 from vision import *
 import resources
@@ -42,12 +42,18 @@ class MainWindow(QMainWindow):
         self.dock.setFeatures(dockFeatures)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
         self.dock.hide()
+
+        self.boxProcessLog  = BoxProcessLog(self)
+        self.dock_Log = QDockWidget('Result', self)
+        self.dock_Log.setWidget(self.boxProcessLog)
+        self.dock_Log.setFeatures(dockFeatures)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_Log)
+        self.dock_Log.show()
         
-        self.auto               = QWidget()
+        self.camera               = BoxCamera(0,0.005,self)
+        self.camera.signal.connect(self.process)
         self.boxProcessLog      = BoxProcessLog(self)
         self.frame              = QLabel()
-        gridlayout              = QGridLayout()
-        self.auto.setLayout(gridlayout)
 
         self.manual = QWidget()
         self.data   = QWidget()
@@ -58,7 +64,7 @@ class MainWindow(QMainWindow):
         self.canvas.cropActionSignal.connect(self.cropImage)
 
         self.stacker = QStackedWidget(self)
-        addWidgets(self.stacker,[self.auto,self.manual,self.canvas,self.data])
+        addWidgets(self.stacker,[self.camera,self.manual,self.canvas,self.data])
 
         self.scroll = QScrollArea()
         self.scroll.setWidget(self.stacker)
@@ -101,40 +107,54 @@ class MainWindow(QMainWindow):
         addActions(edit,[font,editing,self.canvas.actions.test
                 ,self.canvas.actions.testAll,self.canvas.actions.delete])
 
+        # loop camera
+        # 
+    def process(self,mat):
+        boxs = []
+        visualizes  = []
+        config = self.currentModelConfig
+        if config is None:
+            return
+        for section in self.currentModelConfig.sections():
+            if "shape" in section:
+                config              = configProxy2dict(self.currentModelConfig[section])
+                results,vis  = self.predict(config,mat,False)
+                boxs.append(results[0].roi)
+                visualizes.append(vis[-1])
+        self.camera.visualize = {"boxs":boxs,"visualizes":visualizes}
+        pass
     def apply(self):
         shape                               = self.canvas.shapeSelected
         index                               = self.canvas.shapes.index(shape)
         self.canvas.shapes[index].config    = self.boxTeaching.getConfig()
         self.canvas.shapeSelected.config    = self.boxTeaching.getConfig()
         pass
-    def predict(self,shape,teaching=True):
+    def predict(self,shape,mat=None,teaching=True):
         if shape is None:
             return
-        index   = self.canvas.shapes.index(shape)
-        for i in range(len(self.canvas.shapes)):
-            self.canvas.shapes[i].result["pixmap"]  = None
-            self.canvas.shapes[i].result["text"]    = None
         if teaching:
             config  = self.boxTeaching.getConfig()
-        else:
+        elif isinstance(shape,Shape):
             config  = shape.config
+            for i in range(len(self.canvas.shapes)):
+                self.canvas.shapes[i].result["pixmap"]  = None
+                self.canvas.shapes[i].result["text"]    = None
+        else:
+            config  = shape
 
         # t0 = time.time()
-        resutls,visualizes  = test_process(self.canvas.mat
-                        ,config
-                        ,draw_match=True
-                        ,draw_box=True
-                        ,fs=self.fs
-                        ,lw=self.lw
-                        ,color=self.color)
-        # time_infer = time.time()-t0
-        # print("%s time : %d ms"%(shape.label,time_infer*1000))
+        if mat is None:
+            mat = self.canvas.mat
 
-        x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
-        pixmap                                     = ndarray2pixmap(visualizes[-1])
-        self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
-        #     # QMessageBox.information(self,"Dst",dst.text)
-        #     self.canvas.shapes[index].result["text"]   = dst.text
+        resutls,visualizes  = test_process(mat,config)
+
+        if isinstance(shape,Shape):
+            index                                      = self.canvas.shapes.index(shape)
+            x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
+            pixmap                                     = ndarray2pixmap(visualizes[-1])
+            self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
+
+        return resutls,visualizes
 
     def autoPredict(self):
         for i in range(len(self.canvas.shapes)):
@@ -152,7 +172,7 @@ class MainWindow(QMainWindow):
                 pass
             else:
                 bTeaching = iShape == index
-                self.predict(self.canvas.shapes[iShape],bTeaching)
+                self.predict(self.canvas.shapes[iShape],mat=self.canvas.mat,teaching=bTeaching)
             
             time.sleep(timeout)
             if not state:
@@ -249,18 +269,22 @@ class MainWindow(QMainWindow):
 
     def switchWidget(self):
         if self.sender() == self.actions.auto:
-            self.stacker.setCurrentWidget(self.auto)
+            self.stacker.setCurrentWidget(self.camera)
             self.dock.hide()
+            self.dock_Log.show()
         elif self.sender() == self.actions.manual:
             self.stacker.setCurrentWidget(self.manual)
             self.dock.hide()
+            self.dock_Log.hide()
         elif self.sender() == self.actions.teach:
             self.stacker.setCurrentWidget(self.canvas)
             self.actions.open_.setEnabled(True)
             self.dock.show()
+            self.dock_Log.hide()
         elif self.sender() == self.actions.data:
             self.stacker.setCurrentWidget(self.data)
             self.dock.hide()
+            self.dock_Log.hide()
         pass
     
     def editFont(self):
@@ -276,6 +300,11 @@ class MainWindow(QMainWindow):
         self.canvas.edit = True
         self.statusBar().showMessage("Editing")
         pass
+
+    def closeEvent(self,ev):
+        self.camera.release()
+        print("close")
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

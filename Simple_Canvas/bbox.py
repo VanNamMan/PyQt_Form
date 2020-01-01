@@ -499,7 +499,7 @@ class BoxTeaching(QDialog):
     
     def setConfig(self,config):
         self.boxParameter.items.setConfig(config)
-        functions       = config["function"]["functions"].split(",")
+        functions       = config["function"]["Functions"].split(",")
         
         self.boxSelectedFunction.list.clear()
         addItems(self.boxSelectedFunction.list,functions)
@@ -520,7 +520,7 @@ class BoxTeaching(QDialog):
             "Height"   : self.window().canvas.height_
         }
         config["function"] = {
-            "functions"     : functions
+            "Functions"     : functions
         }
         config["crop"]     = {
             "Box"      : item.crop.text(),

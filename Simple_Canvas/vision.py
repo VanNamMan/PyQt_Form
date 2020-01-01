@@ -148,7 +148,7 @@ class OCR(object):
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        return draw(self.mat,self.text)
+        return draw(self.mat,[self.text])
 
 class Match(object):
     def __init__(self):
@@ -165,21 +165,17 @@ class Match(object):
         return len(self.boxs)
     def __str__(self):
         text = self.__name__ + " : %d"%len(self)
-        for i in range(len(self)):
-            box,score,pred = self[i]
-            text += "\n\t%d : %s box %s ,score %.2f"%(i,
-                                                str(box),
-                                                score)
+        # for i in range(len(self)):
+        #     box,score,pred = self[i]
+        #     string = "\n\t%d : %s box %s ,score %.2f"%(i,str(box),score)
+        #     text += string
         return "***** %s *****"%text
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        for i in range(len(self)):
-            box,score,pre  = self[i]
-            text           = "%.2f"%score
-            org            = tuple(box[:2])
-            draw(self.mat,text,box,org)
-        return self.mat 
+        texts = ["%.2f"%s for s in self.scores]
+        orgs = [(b[0],b[1]) for b in self.boxs]
+        return draw(self.mat,boxs=self.boxs,texts=texts,orgs=orgs)
 class Predict(object):
     def __init__(self):
         super(Predict,self).__init__()
@@ -195,7 +191,7 @@ class Predict(object):
             print(self)
         h,w                 = self.mat.shape[:2]
         org                 = (w//2,h//2)
-        return draw(self.mat,text="%s"%str(self.result),org=org)
+        return draw(self.mat,texts=["%s"%str(self.result)],orgs=[org])
 
 def isGray(mat):
     return len(mat.shape) == 2
@@ -383,7 +379,7 @@ def predict(src,config):
     mat         = src.mat
 
 DEF_FONT    = cv2.FONT_HERSHEY_COMPLEX      
-DEF_POS     = (50,100)
+DEF_POS     = [(50,100)]
 DEF_COLOR   = (0,255,0)
 DEF_LW      = 2
 DEF_FS      = 2
@@ -394,21 +390,20 @@ DEF_FUNCTION_TOOLS = {}
 for lb,func in zip(DEF_LB_FUNCTIONS,DEF_FUNCTIONS):
     DEF_FUNCTION_TOOLS[lb]  = func
 
-def draw(mat,text=None,boxs=None,cnts=None
+def draw(mat,texts=[],boxs=[],cnts=None
             ,idx    = -1
-            ,org    = DEF_POS
+            ,orgs   = DEF_POS
             ,font   = DEF_FONT
             ,fs     = DEF_FS
             ,lw     = DEF_LW
             ,c      = DEF_COLOR):
     if isGray(mat):
         mat = cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
-    if text is not None:
+    for text,org in zip(texts,orgs):
         cv2.putText(mat,text,org,font,fs,c,lw)
-    if boxs is not None:
-        for box in boxs:
-            x,y,w,h = box
-            cv2.rectangle(mat,(x,y),(x+w,y+h),c,lw)
+    for box in boxs:
+        x,y,w,h = box
+        cv2.rectangle(mat,(x,y),(x+w,y+h),c,lw)
     if cnts is not None:
         cv2.drawContours(mat,cnts,idx,c,lw)
     return mat
@@ -420,7 +415,7 @@ def test_process(mat,config
                 ,fs=1,lw=2):
     # ======================
     dst         = Mat(mat)
-    lb_funcs    = config["function"]["functions"].split(",")
+    lb_funcs    = config["function"]["Functions"].split(",")
     keys        = list(DEF_FUNCTION_TOOLS.keys())
     results     = []
     visualizes  = []

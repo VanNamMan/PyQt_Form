@@ -15,14 +15,17 @@ CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
 
 class Shape(object):
-    def __init__(self,rect,lb,fs=10,parent=None):
+    def __init__(self,rect,lb,parent=None):
         super(Shape,self).__init__()
         self.parent                   = parent
         self.rect                     = rect
         self.cvRect                   = parent._transformCvRect(self.rect.topLeft()
                                                             ,self.rect.bottomRight())
+        self.result                   = {
+            "pixmap" : None,
+            "text"   : None
+        } 
         self.label                    = lb
-        self.fontSize                 = fs
         self.functions                = []
         self.config                   = {}
         self.fill                     = True
@@ -37,11 +40,18 @@ class Shape(object):
         self.select_fill_color        = DEFAULT_SELECT_FILL_COLOR
         self.visible_fill_color       = DEFAULT_VISIBLE_FILL_COLOR
 
-    def scaled_(self,scale,w,h):
-        sx,sy = scale
-        for i in range(4):
-            p = self.points[i]
-            self.points[i] = QPoint(int(p.x()*sx),int(p.y()*sy))
+    def scaled_(self):
+        w,h             = self.parent.mat.shape[:2][::-1]
+        aw,ah           = self.parent.width_,self.parent.height_
+        sx,sy,sw,sh     = str2ListInt(self.config["crop"]["Box"])
+        rx,ry,rw,rh     = sx/w,sy/h,sw/w,sh/h
+        x,y,w,h         = int(rx*aw),int(ry*ah),int(rw*aw),int(rh*ah)
+        rect            = QRect(x,y,w,h)
+        self.points     = [rect.topLeft(),rect.topRight(),rect.bottomRight(),rect.bottomLeft()]
+        self.rect       = rect
+        if self.result["pixmap"] is not None:
+            self.result["pixmap"] = self.result["pixmap"].scaled(w,h)
+        return
 
     def drawVertex(self, path, i):
         d = 10
@@ -74,19 +84,27 @@ class Shape(object):
         painter.drawPath(vertex_path)
         #  draw label
         font = QFont()
-        font.setPointSize(self.fontSize)
+        font.setPointSize(self.parent.fs)
         font.setBold(True)
         painter.setFont(font)
-        painter.setPen(Qt.green)
+        painter.setPen(self.parent.color)
         if(self.label == None):
             self.label = ""
         painter.drawText(self[0].x()-1,self[0].y()-1, self.label)
+
+        # draw shape result
+        if self.result["pixmap"] is not None:
+            painter.drawPixmap(self[0].x(),self[0].y(),self.result["pixmap"])
+        if self.result["text"] is not None:
+            x,y,w,h = self[0].x(),self[0].y(),self.rect.width(),self.rect.width()
+            painter.drawText(x,y,w,h,0,self.result["text"])
         #  fill shape
+        bTest = self.result["pixmap"] is not None or self.result["text"] is not None
         if self.selected:
             painter.fillPath(vertex_path, self.vertex_select_fill_color)
         else:
             painter.fillPath(vertex_path, self.vertex_fill_color)
-        if self.fill:
+        if self.fill and not bTest:
             color = self.visible_fill_color if self.visible else self.fill_color
             color = self.select_fill_color if self.selected else color
             painter.fillPath(line_path, color)
@@ -119,6 +137,7 @@ class Canvas(QWidget):
         self.pixmap        = QPixmap(640,480)
         self.scaled        = None
         self.fs            = 10
+        self.color         = QColor(0,170,0)
         self.mat           = self.QPixmapToCvMat(self.pixmap)
         self.paint_        = QPainter()
         self.shapes        = []
@@ -174,26 +193,16 @@ class Canvas(QWidget):
         self.actions.testAll.setEnabled(enable)
         self.actions.delete.setEnabled(enable)
 
-    # def itemFuncClicked(self,item):
-    #     if item.checkState() == Qt.Checked:
-    #         self.listSelectedFunction.addItem(item.text())
-    #     pass
-    # def itemClicked(self,item):
-    #     self.enabled_context(True)
-    #     index = self.items.index(item)
-    #     for i,shape in enumerate(self.shapes):
-    #         if i == index:
-    #             shape.selected = True
-    #             self.shapeSelected = shape
-    #             self.apply()
-    #         else:
-    #             shape.selected = False
     def reCreateShape(self,idx,tl,br,corner=None):
-        self.shapes[idx]            = Shape(QRect(tl,br),"shape-%d"%idx,self.fs,self)
+        self.shapes[idx]            = Shape(QRect(tl,br),"shape-%d"%idx,self)
         self.shapes[idx].corner     = corner
         self.shapes[idx].config     = self.boxTeaching.getConfig()
         self.shapeSelected          = self.shapes[idx]
         self.selectedShapeSignal.emit(True)
+
+        #  auto test
+        if self.boxTeaching.autotest.isChecked():
+            self.testActionSignal.emit(self.shapes[idx])
         return self.shapes[idx]
 
     def _drawShape(self,shape):
@@ -220,14 +229,18 @@ class Canvas(QWidget):
         pass
     def _selectedShape(self,selected):
         if selected:
-            i               = self.shapes.index(self.shapeSelected)
-            item            = self.boxTeaching.listShape.item(i)
+            index           = self.shapes.index(self.shapeSelected)
+            item            = self.boxTeaching.listShape.item(index)
             config          = self.shapeSelected.config
             item.setSelected(True)
             self.shapeSelected.selected = True
             self.boxTeaching.setConfig(config)
             str_cvRect                  = "%d,%d,%d,%d"%self.shapeSelected.cvRect
             self.window().lbRect.setText("[%s]"%str_cvRect)
+
+            #  auto test
+            if self.boxTeaching.autotest.isChecked():
+                self.testActionSignal.emit(self.shapes[index])
 
             for j,shape in enumerate(self.shapes):
                 if shape != self.shapeSelected:
@@ -348,14 +361,15 @@ class Canvas(QWidget):
             w  = self.width_
             h  = self.height_
             self.scaled = self.pixmap.scaled(w,h)
+            self.fs     = max(self.width_//100,6)
+            self.mat    = self.QPixmapToCvMat(self.pixmap)
 
             for shape in self.shapes:
-                self._transformInv(shape)
+                # self._transformInv(shape)
+                shape.scaled_()
         
     def loadPixmap(self,pixmap):
         self.pixmap = pixmap
-        self.mat    = self.QPixmapToCvMat(pixmap)
-        self.fs     = max(self.pixmap.width()//100,6)
         self.scaled_()
         self.repaint()
     
@@ -411,13 +425,12 @@ class Canvas(QWidget):
 
         # p.scale(self.scale,self.scale)
         # p.translate(self.offsetToCenter())
-        p.setPen(QPen(Qt.black,2,Qt.DashDotLine))
+        p.setPen(QPen(self.color,2,Qt.DashDotLine))
         p.setBrush(QBrush(Qt.green,Qt.BDiagPattern))
-        # self.origin = self.listShape.geometry().topRight()
         p.translate(self.origin)
         p.drawPixmap(0,0,self.scaled)
         if self.curPos is not None and self.edit and not self.drawing:
-            p.setPen(Qt.black)
+            p.setPen(QPen(Qt.black,2))
             pos = self.curPos
             pos1 = QPoint(0,pos.y())
             pos2 = QPoint(self.width(),pos.y())
@@ -457,7 +470,7 @@ class Canvas(QWidget):
             rtext        = "%d,%d,%d,%d"%self._transformCvRect(self.tl,self.br)
             self.mouseMoveSignal.emit(rtext,ptext)
             lb           = "shape-%d"%(len(self.shapes))
-            self.current = Shape(QRect(self.tl,self.br),lb,self.fs,self)
+            self.current = Shape(QRect(self.tl,self.br),lb,self)
             self.drawShape.emit(self.current)
         else:
             self.mouseMoveSignal.emit("",ptext)

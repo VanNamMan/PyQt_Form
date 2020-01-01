@@ -14,7 +14,8 @@ class ColorDialog(QColorDialog):
         # Add a restore defaults button.
         # The default is set at invocation time, so that it
         # works across dialogs for different elements.
-        self.default = None
+        self.default = QColor(0,170,0,255)
+        self.setCurrentColor(self.default)
         self.bb = self.layout().itemAt(1).widget()
         self.bb.addButton(BB.RestoreDefaults)
         self.bb.clicked.connect(self.checkRestore)
@@ -25,20 +26,22 @@ class ColorDialog(QColorDialog):
             self.setWindowTitle(title)
         if value:
             self.setCurrentColor(value)
-        return self.currentColor() if self.exec_() else None
+        return self.currentColor() if self.exec_() else self.default
 
     def checkRestore(self, button):
         if self.bb.buttonRole(button) & BB.ResetRole and self.default:
             self.setCurrentColor(self.default)
 
 class BoxFontColor(QDialog):
-    def __init__(self):
-        super(BoxFontColor,self).__init__()
+    def __init__(self,parent=None):
+        super(BoxFontColor,self).__init__(parent)
         self.colorDialog     = ColorDialog(self)
         self.color           = DEFAUT_COLOR
         self.but_color       = newButton("Color",self.getColor)
-        self.cbb_lw          = newCbb(["%d"%d for d in range(1,10)])
-        self.cbb_fs          = newCbb(["%.1f"%(d/10) for d in range(2,100,4)])
+        self.spin_lw         = QSpinBox(self)
+        self.spin_fs         = QSpinBox(self)
+        self.spin_lw.setRange(1,10)
+        self.spin_fs.setRange(1,1000)
 
         lb_color             = QLabel("Color")
         lb_lw                = QLabel("LineWidth")
@@ -54,8 +57,8 @@ class BoxFontColor(QDialog):
         layout.addWidget(lb_fs,2,0)
 
         layout.addWidget(self.but_color,0,1)
-        layout.addWidget(self.cbb_lw,1,1)
-        layout.addWidget(self.cbb_fs,2,1)
+        layout.addWidget(self.spin_lw,1,1)
+        layout.addWidget(self.spin_fs,2,1)
         layout.addWidget(bb,3,1)
 
         self.setLayout(layout)
@@ -66,10 +69,10 @@ class BoxFontColor(QDialog):
     def getColor(self):
         self.color = self.colorDialog.getColor(title='Choose color',default=DEFAUT_COLOR)
     def getFontAndColor(self):
-        return {"color"    : self.color,
+        return {"color"     : self.color,
                 "cvColor"   : self.color.getRgb()[:3][::-1],
-                "lw"        : eval(self.cbb_lw.currentText()),
-                "fs"        : eval(self.cbb_fs.currentText())}
+                "lw"        : self.spin_lw.value(),
+                "fs"        : self.spin_fs.value()}
 
 class Items(object):
     def __init__(self,parent):
@@ -159,6 +162,37 @@ class Items(object):
                 ,"Image File (*jpg *png)")
         if filename:
             self.match_filename.setText(filename)
+
+class Frame(QLabel):
+    def __init__(self,parent=None):
+        super(Frame,self).__init__(parent)
+        self.setAlignment(Qt.AlignCenter)
+
+    def show(self,mat):
+        pixmap  = ndarray2pixmap(mat)
+        self.setPixmap(pixmap)
+        pass
+
+class BoxProcessLog(QDialog):
+    def __init__(self,parent=None):
+        super(BoxProcessLog,self).__init__(parent)
+        self.list           = QListWidget(self)
+        self.but_clear      = newButton("Clear",self.clear,"clear")
+
+        
+        widget = [
+            self.list,
+            self.but_clear
+        ]
+        layout = QVBoxLayout()
+        addWidgets(layout,widget)
+
+        self.setLayout(layout)
+    
+    def clear(self):
+        self.list.clear()
+    def log(self,text):
+        self.list.addItem("%s : %s"%(getStrTime,text))
 
 class BoxParameter(QTreeWidget):
     def __init__(self,parent=None):
@@ -262,6 +296,7 @@ class BoxModel(QDialog):
                 self.cbb_model.clear()
                 self.ln_model.clear()
                 addItems(self.cbb_model,allItems)
+                self.cbb_model.setCurrentIndex(len(allItems)-1)
                 mkdir('%s/%s'%(self.folder,new))
                 cfg             = ConfigParser()
                 cfg["model"]    = {"model" : new}
@@ -279,11 +314,12 @@ class BoxFunction(QListWidget,QDialog):
     itemClickedSignal   = pyqtSignal(QListWidgetItem)
     def __init__(self,items,parent=None):
         super(BoxFunction,self).__init__(parent)
-        addItems(self,items)
-        for i in range(len(items)):
-            item = self.item(i)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(not Qt.Checked)
+        if items:
+            addItems(self,items)
+            for i in range(len(items)):
+                item = self.item(i)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(not Qt.Checked)
 
         self.itemClicked.connect(self.itemClicked_)
     
@@ -361,6 +397,7 @@ class BoxSelectedFunction(QDialog):
                 row = self.list.row(items[0])
                 self.list.takeItem(row)
 class BoxTeaching(QDialog):
+    listShapeCliked     = pyqtSignal(int)
     def __init__(self,model_folder,defautl_function,parent=None):
         super(BoxTeaching,self).__init__(parent)
         layout = QVBoxLayout()
@@ -371,9 +408,19 @@ class BoxTeaching(QDialog):
         self.boxFunction            = BoxFunction(funcs)
         self.boxSelectedFunction    = BoxSelectedFunction()
         self.boxParameter           = BoxParameter()
+        self.autotest               = QCheckBox("Auto Test")
+        self.ln_timeout             = QSpinBox(self)
+        self.cbb_shape              = QComboBox(self)
         self.but_save               = newButton("Save",self.save,"save")
         self.but_apply              = newButton("Apply",self.apply,"apply")
-        self.boxModel.cbb_model.activated.connect(self.chooseModel)
+
+        self.boxFunction.itemClickedSignal.connect(self.funcClicked)
+        self.listShape.clicked.connect(self.itemClicked)
+        self.autotest.stateChanged.connect(self.stateChanged)
+
+        self.ln_timeout.setRange(1,1000)
+        self.ln_timeout.setSingleStep(10)
+        self.ln_timeout.setValue(100)
 
         tab1                        = QWidget()
         layout1                     = QVBoxLayout()
@@ -400,6 +447,16 @@ class BoxTeaching(QDialog):
         tabWidget.addTab(tab1,"Shape")
         tabWidget.addTab(tab2,"Params")
 
+        autotest                     = QHBoxLayout()
+        widgets1 = [
+            self.autotest,
+            QLabel("Timeout"),
+            self.ln_timeout,
+            QLabel("Shape"),
+            self.cbb_shape
+        ]
+        addWidgets(autotest,widgets1)
+
         widgets = [
             self.but_apply,
             self.but_save
@@ -409,18 +466,29 @@ class BoxTeaching(QDialog):
 
         widgets = [
             tabWidget,
+            autotest,
             buttons
         ]
         addWidgets(layout,widgets)
 
         self.setLayout(layout)
-
-        self.boxFunction.itemClickedSignal.connect(self.funcClicked)
     
     def apply(self):
         self.window().apply()
+    def stateChanged(self,state):
+        shapes = self.window().canvas.shapes
+        labels = [shape.label for shape in shapes] + ["None"]
+        self.cbb_shape.clear()
+        addItems(self.cbb_shape,labels)
+        self.cbb_shape.setCurrentIndex(-1)
+        # self.window().autoPredict()
+        pass
     def save(self):
         self.window().saveAll()
+        pass
+    def itemClicked(self,item):
+        row = self.listShape.currentRow()
+        self.listShapeCliked.emit(row)
         pass
     def funcClicked(self,item):
         if item.checkState() == Qt.Checked:
@@ -446,6 +514,10 @@ class BoxTeaching(QDialog):
         config["camera"]   = {
             "Type"     : item.camera_type.currentText(),
             "SN"       : item.camera_id.text()
+        }
+        config["frame"]   = {
+            "Width"    : self.window().canvas.width_,
+            "Height"   : self.window().canvas.height_
         }
         config["function"] = {
             "functions"     : functions
@@ -511,6 +583,7 @@ if __name__ == "__main__":
     QColor().red
     import sys
     app = QApplication(sys.argv)
-    canvas = BoxFontColor()
-    print(canvas.popUp())
+    wd = QMainWindow()
+    canvas = BoxFontColor(wd)
+    canvas.showNormal()
     sys.exit(app.exec_())

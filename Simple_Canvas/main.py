@@ -1,5 +1,5 @@
 from utils import *
-from bbox import BoxTeaching,BoxFontColor
+from bbox import BoxTeaching,BoxFontColor,BoxProcessLog
 from canvas import Canvas,Shape
 from vision import *
 import resources
@@ -14,11 +14,14 @@ class MainWindow(QMainWindow):
         self.currentModelConfig    = None
         self.config                = ConfigParser()
         self.config.read("main.config")
-        model_fodler        = self.config["Model"]["folder"]
-        file_function       = self.config["Function"]["file"]
+        model_fodler        = self.config["model"]["folder"]
+        file_function       = self.config["function"]["file"]
 
-        self.lbPos  = QLabel("",self)
-        self.lbRect = QLabel("",self)
+        self.lbPos          = QLabel("",self)
+        self.lbRect         = QLabel("",self)
+        self.lbTimeInfer    = QLabel("",self)
+
+        self.statusBar().addPermanentWidget(self.lbTimeInfer)
         self.statusBar().addPermanentWidget(self.lbRect)
         self.statusBar().addPermanentWidget(self.lbPos)
 
@@ -32,6 +35,7 @@ class MainWindow(QMainWindow):
                                             ,self)
 
         self.boxTeaching.boxModel.cbb_model.activated.connect(self.chooseModel)
+        self.boxTeaching.listShapeCliked.connect(self.listShapeCliked)
 
         self.dock = QDockWidget('boxTeaching', self)
         self.dock.setWidget(self.boxTeaching)
@@ -39,8 +43,10 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
         self.dock.hide()
         
-        self.auto   = QWidget()
-        gridlayout  = QGridLayout()
+        self.auto               = QWidget()
+        self.boxProcessLog      = BoxProcessLog(self)
+        self.frame              = QLabel()
+        gridlayout              = QGridLayout()
         self.auto.setLayout(gridlayout)
 
         self.manual = QWidget()
@@ -48,7 +54,7 @@ class MainWindow(QMainWindow):
 
         self.canvas = Canvas(self)
         self.canvas.mouseMoveSignal.connect(self.mouseMove)
-        self.canvas.testActionSignal.connect(self.test)
+        self.canvas.testActionSignal.connect(self.predict)
         self.canvas.cropActionSignal.connect(self.cropImage)
 
         self.stacker = QStackedWidget(self)
@@ -101,6 +107,59 @@ class MainWindow(QMainWindow):
         self.canvas.shapes[index].config    = self.boxTeaching.getConfig()
         self.canvas.shapeSelected.config    = self.boxTeaching.getConfig()
         pass
+    def predict(self,shape,teaching=True):
+        if shape is None:
+            return
+        index   = self.canvas.shapes.index(shape)
+        for i in range(len(self.canvas.shapes)):
+            self.canvas.shapes[i].result["pixmap"]  = None
+            self.canvas.shapes[i].result["text"]    = None
+        if teaching:
+            config  = self.boxTeaching.getConfig()
+        else:
+            config  = shape.config
+
+        # t0 = time.time()
+        resutls,visualizes  = test_process(self.canvas.mat
+                        ,config
+                        ,draw_match=True
+                        ,draw_box=True
+                        ,fs=self.fs
+                        ,lw=self.lw
+                        ,color=self.color)
+        # time_infer = time.time()-t0
+        # print("%s time : %d ms"%(shape.label,time_infer*1000))
+
+        x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
+        pixmap                                     = ndarray2pixmap(visualizes[-1])
+        self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
+        #     # QMessageBox.information(self,"Dst",dst.text)
+        #     self.canvas.shapes[index].result["text"]   = dst.text
+
+    def autoPredict(self):
+        for i in range(len(self.canvas.shapes)):
+            runThread(self.loopAutoPredict,args=(i,))
+
+    def loopAutoPredict(self,iShape):
+        self.showMessage("Auto test starting")
+        timeout         = float(self.boxTeaching.ln_timeout.text())/1000
+        n               = self.boxTeaching.cbb_shape.count()
+
+        while True:
+            index       = self.boxTeaching.cbb_shape.currentIndex()
+            state       = self.boxTeaching.autotest.checkState()
+            if index == -1:
+                pass
+            else:
+                bTeaching = iShape == index
+                self.predict(self.canvas.shapes[iShape],bTeaching)
+            
+            time.sleep(timeout)
+            if not state:
+                break
+
+        self.showMessage("Auto test stopped")
+
     def saveAll(self):
         boxTeaching     = self.boxTeaching
         model           = boxTeaching.boxModel.model()
@@ -112,11 +171,16 @@ class MainWindow(QMainWindow):
         for shape in self.canvas.shapes:
             lb                   = shape.label
             config               = shape.config
-            cfg[lb]         = config
+            cfg[lb]              = config
         with open(cfg_file,"w") as ff:
             cfg.write(ff)
         self.statusBar().showMessage("%s saved"%model,5000)
 
+    def listShapeCliked(self,row):
+        for i in range(len(self.canvas.shapes)):
+            self.canvas.shapes[i].selected = row == i
+            self.canvas.shapeSelected      = self.canvas.shapes[row]
+        pass
     def chooseModel(self):
         model                     = self.boxTeaching.boxModel.cbb_model.currentText()
         folder                    = self.boxTeaching.model_folder
@@ -134,10 +198,17 @@ class MainWindow(QMainWindow):
         for i,lb in enumerate(lb_shapes):
             cfg                   = config[lb]
             x,y,w,h               = str2ListInt(eval(cfg["crop"])["QRect"])
-            shape                 = Shape(QRect(x,y,w,h),lb,parent=self.canvas)
+            fw,fh                 = eval(cfg["frame"])["Width"],eval(cfg["frame"])["Height"]
+            width,height          = self.canvas.width_,self.canvas.height_
+            sw,sh                 = width/fw,height/fh
+            x_,y_,w_,h_           = int(x*sw),int(y*sh),int(w*sw),int(h*sh)                        
+            shape                 = Shape(QRect(x_,y_,w_,h_),lb,parent=self.canvas)
             for section in cfg.keys():
                 dict_                   = eval(cfg[section])
+                dict_["QRect"]  = "%d,%d,%d,%d"%(x_,y_,w_,h_)  
                 shape.config[section]   = dict_
+            
+            shape.scaled_()
             
             self.canvas.shapes.append(shape)
 
@@ -157,22 +228,7 @@ class MainWindow(QMainWindow):
             cv2.imwrite(filename,cropped)
             self.statusBar().showMessage("image saved at %s"%filename,5000)
         pass
-    def test(self,shape):
-        config  = self.boxTeaching.getConfig()
-        dst     = test_process(self.canvas.mat
-                        ,config
-                        ,draw_match=True
-                        ,draw_box=True
-                        ,fs=self.fs
-                        ,lw=self.lw
-                        ,color=self.color)
-        if isinstance(dst,np.ndarray):
-            wd = cv2.namedWindow("",cv2.WINDOW_FREERATIO)
-            cv2.imshow("",dst)
-            cv2.waitKey(0)
-        elif isinstance(dst,OCR):
-            QMessageBox.information(self,"Dst",dst.text)
-
+    
     def mouseMove(self,r,p):
         self.lbPos.setText(p)
         if r:
@@ -187,6 +243,10 @@ class MainWindow(QMainWindow):
             self.canvas.loadPixmap(pixmap)
             self.statusBar().showMessage(filename)
         pass
+    
+    def showMessage(self,stt):
+        self.statusBar().showMessage(stt)
+
     def switchWidget(self):
         if self.sender() == self.actions.auto:
             self.stacker.setCurrentWidget(self.auto)
@@ -206,18 +266,21 @@ class MainWindow(QMainWindow):
     def editFont(self):
         a = self.boxFontAndColor.popUp()
         if a :
-            self.color  = a["cvColor"]
-            self.lw     = a["lw"]
-            self.fs     = a["fs"]
+            self.color          = a["cvColor"]
+            self.lw             = a["lw"]
+            self.fs             = a["fs"]/10
+            self.canvas.fs      = a["fs"]
+            self.canvas.color   = a["color"]
         pass
     def editing(self):
         self.canvas.edit = True
+        self.statusBar().showMessage("Editing")
         pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
-    win.show()
+    win.showMaximized()
     sys.exit(app.exec_())
 
 

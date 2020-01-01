@@ -18,6 +18,8 @@ import shlex
 from scipy import misc
 from PIL import ImageQt
 
+
+
 def ocr_(mat,cfg):
     txt = pytesseract.image_to_string(mat,config=cfg)
     return txt
@@ -157,6 +159,25 @@ def newAction(parent,text,slot=None,shortcut=None,icon=None,enabled=True):
     a.setEnabled(enabled)
     return a
 
+def draw(mat,text=None,box=None,cnts=None
+            ,idx    = -1
+            ,org    = (20,20)
+            ,font   = 0
+            ,fs     = 1.0
+            ,lw     = 2
+            ,c      = (0,255,0)):
+    if isGray(mat):
+        mat = cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
+    if text is not None:
+        cv2.putText(mat,text,org,font,fs,c,lw)
+    if box is not None:
+        pt1 = tuple(box[:2])
+        pt2 = (box[0]+box[2],box[1]+box[3])
+        cv2.rectangle(mat,pt1,pt2,c,lw)
+    if cnts is not None:
+        cv2.drawContours(mat,cnts,idx,c,lw)
+    return mat
+
 def mkdir(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -164,6 +185,19 @@ def mkdir(folder):
 def runThread(target,args):
     thread = threading.Thread(target=target,args=args)
     thread.start()
+
+def ndarray2pixmap(arr):
+    h,w = arr[:2]
+    if len(arr.shape) == 2:
+        # qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(arr)))
+        pixmap = QPixmap.fromImage(gray2qimage(arr))
+    else:
+        # channel = arr.shape[-1]
+        rgb = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+        # qim = QImage(rgb.data,w,h,channel*w, QImage.Format_RGB888)
+        # qpix = QPixmap(qim)
+        pixmap = QPixmap.fromImage(array2qimage(rgb))
+    return pixmap
 
 def showImage(image,label):
     width , height = label.width(),label.height()
@@ -178,14 +212,15 @@ def showImage(image,label):
     # t0 = time.time()
     new_img = cv2.resize(image,(new_w,new_h))
     # print(time.time()-t0)
-    if len(image.shape) == 2:
-        new_img = cv2.cvtColor(new_img, cv2.COLOR_GRAY2RGB)
-        qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(new_img)))
-    else:
-        channel = image.shape[-1]
-        new_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2RGB)
-        qim = QImage(new_img.data,new_w,new_h,channel*new_w, QImage.Format_RGB888)
-        qpix = QPixmap(qim)
+    qpix    = ndarray2pixmap(new_img)
+    # if len(image.shape) == 2:
+    #     new_img = cv2.cvtColor(new_img, cv2.COLOR_GRAY2RGB)
+    #     qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(new_img)))
+    # else:
+    #     channel = image.shape[-1]
+    #     new_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2RGB)
+    #     qim = QImage(new_img.data,new_w,new_h,channel*new_w, QImage.Format_RGB888)
+    #     qpix = QPixmap(qim)
 
     label.setPixmap(qpix)
 
@@ -194,8 +229,11 @@ def showImage(image,label):
 if __name__ == "__main__":
     # txts = readline("default_function.txt")
     # print(txts)
-    config = ConfigParser()
-    config.read("demo/para.config")
-    camera = eval(config["Config"]["Camera"])
+    # config = ConfigParser()
+    # config.read("demo/para.config")
+    # camera = eval(config["Config"]["Camera"])
+    mat = cv2.imread("demo/1.jpg")
+    pixmap = ndarray2pixmap(mat)
+
     
     

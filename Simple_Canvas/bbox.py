@@ -1,4 +1,5 @@
 from utils import*
+from vision2 import*
 import resources
 
 BB = QDialogButtonBox
@@ -484,6 +485,9 @@ class BoxFunction(QListWidget,QDialog):
     itemClickedSignal   = pyqtSignal(QListWidgetItem)
     def __init__(self,items,parent=None):
         super(BoxFunction,self).__init__(parent)
+
+        self.currentItemChanged.connect(self.itemClicked_)
+        self.itemClicked.connect(self.itemClicked_)
         if items:
             addItems(self,items)
             for i in range(len(items)):
@@ -491,10 +495,16 @@ class BoxFunction(QListWidget,QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(not Qt.Checked)
 
-        self.itemClicked.connect(self.itemClicked_)
+        
     
     def itemClicked_(self,item):
+        row = self.currentIndex()
+        fun = eval(item.text())
+        tooltip = DEF_FUNCTIONS[fun].__doc__
+        self.setToolTip(tooltip)
         self.itemClickedSignal.emit(item)
+
+
 
 class BoxSelectedFunction(QDialog):
     itemRightClickedSignal   = pyqtSignal(QListWidgetItem)
@@ -754,7 +764,7 @@ if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     # wd = QMainWindow()
-    canvas = BoxProcessLog()
+    canvas = BoxFunction(readline("functions.txt"))
     # wd.setCentralWidget(canvas)
     canvas.showNormal()
     sys.exit(app.exec_())

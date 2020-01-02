@@ -1,0 +1,9 @@
+Crop
+Blur
+Convert
+Binary
+Morph
+Contours
+Remove
+Match
+OCR

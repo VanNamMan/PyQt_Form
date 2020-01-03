@@ -1,5 +1,5 @@
 from utils import*
-from vision2 import*
+from vision import*
 import resources
 
 BB = QDialogButtonBox
@@ -12,6 +12,7 @@ class BoxCamera(QDialog):
         super(BoxCamera,self).__init__(parent)
         self.setWindowTitle("Camera Dialog")
         self.cap        = cv2.VideoCapture(i)
+        self.mat = None
         self.timeout    = timeout
         self.visualize  = {"boxs":None,"visualizes":None}
 
@@ -19,13 +20,15 @@ class BoxCamera(QDialog):
         self.frame      = QLabel(self)
         self.frame.setAlignment(Qt.AlignCenter)
 
-        hlayoutTop      = QHBoxLayout()
-        self.cbb_camera = newCbb(["0","1","2"])
-        self.lb_fps     = QLabel("",self)
-        self.lb_fps.setMaximumHeight(50)
+        hlayoutTop          = QHBoxLayout()
+        self.cbb_camera     = newCbb(["Webcam","Basler"])
+        self.ln_idCamera    = QLineEdit(self)
+        self.lb_fps         = QLabel("",self)
+        # self.lb_fps.setMaximumHeight(50)
         widgets = [
             QLabel("Camera"),
             self.cbb_camera,
+            self.ln_idCamera,
             self.lb_fps
         ]
         addWidgets(hlayoutTop,widgets)
@@ -68,17 +71,19 @@ class BoxCamera(QDialog):
             if cv2.imwrite(filename,mat):
                 print("image saved at %s"%filename)
     def grab(self):
-        ret,mat = self.cap.read()
+        ret,self.mat = self.cap.read()
         if ret:
-            return mat
+            return self.mat
         else:
             return None
     def start(self):
         self.bStart     = True
         runThread(self.loop,args=())
+        self.window().boxProcess.log("start")
         pass
     def stop(self):
         self.bStart = False
+        self.window().boxProcess.log("stop")
         pass
     def reset(self):
         pass
@@ -292,9 +297,35 @@ class Items(object):
 #         pixmap  = ndarray2pixmap(mat)
 #         self.setPixmap(pixmap)
 #         pass
-class BoxProcessLog(QDialog):
+class BoxTableWidget(QTableWidget):
+    def __init__(self,headers,parent=None):
+        super(BoxTableWidget,self).__init__(parent)
+        self.verticalHeader().hide()
+        self.setColumnCount(len(headers))
+        for i in range(len(headers)):
+            self.setHorizontalHeaderItem(i,QTableWidgetItem(headers[i]))
+
+    def __setitem__(self,key,value):
+        row = self.rowCount()
+        if row > key:
+            for i,text in enumerate(value):
+                self.setItem(key,i,QTableWidgetItem(text))
+        else:
+            self.setRowCount(key+1)
+            for i,text in enumerate(value):
+                self.setItem(key,i,QTableWidgetItem(text))
+    
+    def __getitem__(self,key):
+        texts = []
+        n = self.rowCount()
+        for i in range(self.columnCount()):
+            texts.append(self.item(key,i).text())
+        return texts
+
+
+class BoxProcessResult(QDialog):
     def __init__(self,parent=None):
-        super(BoxProcessLog,self).__init__(parent)
+        super(BoxProcessResult,self).__init__(parent)
         self.list           = QListWidget(self)
 
         grid                = QGridLayout()
@@ -324,7 +355,7 @@ class BoxProcessLog(QDialog):
 
         self.lb_result      = QLabel("Wait",self)
         self.lb_result.setAlignment(Qt.AlignCenter)
-        self.lb_result.setMinimumHeight(300)
+        # self.lb_result.setMinimumHeight(300)
         style = "color:black;font:bold 72px;border-width:3px;border-color:black;border-style: outset"
         self.lb_result.setStyleSheet(style)
 
@@ -345,7 +376,7 @@ class BoxProcessLog(QDialog):
     def clear(self):
         self.list.clear()
     def log(self,text):
-        self.list.addItem("%s : %s"%(getStrTime,text))
+        self.list.addItem("%s : %s"%(getStrTime(),text))
     
     def showResult(self,nums,res=None):
         style = "color:black;font:bold 72px;border-width:3px;background:%s \
@@ -477,34 +508,19 @@ class BoxModel(QDialog):
         return self.cbb_model.currentText()
     
     def load(self,folder):
-        models = os.listdir(folder)
+        models = os.listdir(folder)+["None"]
         addItems(self.cbb_model,models)
-        self.cbb_model.setCurrentIndex(-1)
+        self.cbb_model.setCurrentIndex(len(models)-1)
 
 class BoxFunction(QListWidget,QDialog):
-    itemClickedSignal   = pyqtSignal(QListWidgetItem)
     def __init__(self,items,parent=None):
         super(BoxFunction,self).__init__(parent)
-
-        self.currentItemChanged.connect(self.itemClicked_)
-        self.itemClicked.connect(self.itemClicked_)
         if items:
             addItems(self,items)
             for i in range(len(items)):
                 item = self.item(i)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(not Qt.Checked)
-
-        
-    
-    def itemClicked_(self,item):
-        row = self.currentIndex()
-        fun = eval(item.text())
-        tooltip = DEF_FUNCTIONS[fun].__doc__
-        self.setToolTip(tooltip)
-        self.itemClickedSignal.emit(item)
-
-
 
 class BoxSelectedFunction(QDialog):
     itemRightClickedSignal   = pyqtSignal(QListWidgetItem)
@@ -581,7 +597,6 @@ class BoxSelectedFunction(QDialog):
                 row = self.list.row(items[0])
                 self.list.takeItem(row)
 class BoxTeaching(QDialog):
-    listShapeCliked     = pyqtSignal(int)
     def __init__(self,model_folder,defautl_function,parent=None):
         super(BoxTeaching,self).__init__(parent)
         layout = QVBoxLayout()
@@ -593,18 +608,13 @@ class BoxTeaching(QDialog):
         self.boxSelectedFunction    = BoxSelectedFunction()
         self.boxParameter           = BoxParameter()
         self.autotest               = QCheckBox("Auto Test")
-        self.ln_timeout             = QSpinBox(self)
         self.cbb_shape              = QComboBox(self)
         self.but_save               = newButton("Save",self.save,"save")
         self.but_apply              = newButton("Apply",self.apply,"apply")
 
-        self.boxFunction.itemClickedSignal.connect(self.funcClicked)
-        self.listShape.clicked.connect(self.itemClicked)
+        self.boxFunction.itemClicked.connect(self.funcClicked)
+        self.listShape.itemClicked.connect(self.itemClicked)
         self.autotest.stateChanged.connect(self.stateChanged)
-
-        self.ln_timeout.setRange(1,1000)
-        self.ln_timeout.setSingleStep(10)
-        self.ln_timeout.setValue(100)
 
         tab1                        = QWidget()
         layout1                     = QVBoxLayout()
@@ -634,8 +644,6 @@ class BoxTeaching(QDialog):
         autotest                     = QHBoxLayout()
         widgets1 = [
             self.autotest,
-            QLabel("Timeout"),
-            self.ln_timeout,
             QLabel("Shape"),
             self.cbb_shape
         ]
@@ -672,11 +680,20 @@ class BoxTeaching(QDialog):
         pass
     def itemClicked(self,item):
         row = self.listShape.currentRow()
-        self.listShapeCliked.emit(row)
+        for i in range(len(self.window().canvas.shapes)):
+            self.window().canvas.shapes[i].selected = row == i
+            self.window().canvas.shapeSelected      = self.window().canvas.shapes[row]
+        self.window().canvas.selectedShapeSignal.emit(True)
+
         pass
     def funcClicked(self,item):
         if item.checkState() == Qt.Checked:
             self.boxSelectedFunction.list.addItem(item.text())
+        
+        row = self.boxFunction.currentIndex()
+        fun = eval(item.text())
+        tooltip = DEF_FUNCTIONS[fun].__doc__
+        self.setToolTip(tooltip)
     
     def chooseModel(self):
         pass
@@ -767,8 +784,10 @@ if __name__ == "__main__":
     QColor().red
     import sys
     app = QApplication(sys.argv)
-    # wd = QMainWindow()
-    box = BoxSelectedFunction(["A","B","C"])
-    box.show()
+    wd = QMainWindow()
+    # box = BoxSelectedFunction(["A","B","C"])
+    box = BoxTableWidget(["Time","Header1","Header2"])
+    wd.setCentralWidget(box)
+    wd.show()
     # wd.setCentralWidget(canvas)
     sys.exit(app.exec_())

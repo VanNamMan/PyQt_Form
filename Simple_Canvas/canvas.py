@@ -165,10 +165,10 @@ class Canvas(QWidget):
         self.boxTeaching   = parent.boxTeaching
         
         action             = partial(newAction,self)
-        crop               = action("Crop",self.cropImage,"a","crop",False)
-        test               = action("Test",self.test,"a","test",False)
-        testAll            = action("Test all",self.testAll,"shift+a","testAll",False)
-        delete             = action("Delete",self.delete,"delete","delete",False)
+        crop               = action("Crop",self.cropImage,"a","crop",None,False)
+        test               = action("Test",self.test,"a","test",None,False)
+        testAll            = action("Test all",self.testAll,"shift+a","testAll",None,False)
+        delete             = action("Delete",self.delete,"delete","delete",None,False)
 
         self.actions       = struct(
             crop        = crop,

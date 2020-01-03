@@ -2,6 +2,7 @@ from utils import *
 from bbox import *
 from canvas import Canvas,Shape
 from vision import *
+
 import resources
 
 print("System : ",os.name)
@@ -29,30 +30,31 @@ class MainWindow(QMainWindow):
         self.color              = (0,255,0)
         self.fs                 = 1
         self.lw                 = 2
-        dockFeatures            = QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
+        dockFeatures            = QDockWidget.DockWidgetClosable|QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable
         self.boxTeaching        = BoxTeaching(model_fodler
                                             ,file_function
                                             ,self)
 
         self.boxTeaching.boxModel.cbb_model.activated.connect(self.chooseModel)
-        self.boxTeaching.listShapeCliked.connect(self.listShapeCliked)
 
-        self.dock = QDockWidget('boxTeaching', self)
-        self.dock.setWidget(self.boxTeaching)
-        self.dock.setFeatures(dockFeatures)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
-        # self.dock.hide()
+        self.dock_teach = QDockWidget('boxTeaching', self)
+        self.dock_teach.setWidget(self.boxTeaching)
+        self.dock_teach.setFeatures(dockFeatures)
+        
+        self.boxProcess  = BoxProcessResult(self)
+        self.dock_proc = QDockWidget('Result', self)
+        self.dock_proc.setWidget(self.boxProcess)
+        self.dock_proc.setFeatures(dockFeatures)
 
-        self.boxProcessLog  = BoxProcessLog(self)
-        self.dock_Log = QDockWidget('Result', self)
-        self.dock_Log.setWidget(self.boxProcessLog)
-        self.dock_Log.setFeatures(dockFeatures)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_Log)
-        self.dock_Log.show()
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_proc)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_teach)
+        
+        toggleParaDock = self.dock_teach.toggleViewAction()
+        toggleLogDock  = self.dock_proc.toggleViewAction()
         
         self.camera               = BoxCamera(0,0.005,self)
         self.camera.signal.connect(self.process)
-        self.boxProcessLog      = BoxProcessLog(self)
+        # self.boxProcessLog      = BoxProcessLog(self)
         self.frame              = QLabel()
 
         self.manual = QWidget()
@@ -84,7 +86,7 @@ class MainWindow(QMainWindow):
         )
 
         action    = partial(newAction,self)
-        open_     = action("Open",self.openFile,"ctrl+o","open",False)
+        open_     = action("Open",self.openFile,"ctrl+o","open",None,False)
         auto      = action("Home",self.switchWidget,"ctrl+a","home")
         teach     = action("Teaching",self.switchWidget,"ctrl+t","teach")
         data      = action("Data",self.switchWidget,"ctrl+d","data")
@@ -103,7 +105,7 @@ class MainWindow(QMainWindow):
         )
 
         addActions(file,[open_])
-        addActions(view,[auto,manual,teach,data])
+        addActions(view,[auto,manual,teach,data,toggleLogDock,toggleParaDock])
         addActions(edit,[font,editing,self.canvas.actions.test
                 ,self.canvas.actions.testAll,self.canvas.actions.delete])
 
@@ -114,6 +116,7 @@ class MainWindow(QMainWindow):
             return 
         boxs = []
         visualizes  = []
+        self.camera.visualize = {"boxs":None,"visualizes":None}
         config = self.currentModelConfig
         if config is None:
             return
@@ -121,8 +124,9 @@ class MainWindow(QMainWindow):
             if "shape" in section:
                 config              = configProxy2dict(self.currentModelConfig[section])
                 results,vis  = self.predict(config,mat,False)
-                boxs.append(results[0].roi)
-                visualizes.append(vis[-1])
+                if results:
+                    boxs.append(results[0].roi)
+                    visualizes.append(vis[-1])
         self.camera.visualize = {"boxs":boxs,"visualizes":visualizes}
         pass
     def apply(self):
@@ -183,29 +187,30 @@ class MainWindow(QMainWindow):
         self.showMessage("Auto test stopped")
 
     def saveAll(self):
-        boxTeaching     = self.boxTeaching
-        model           = boxTeaching.boxModel.model()
-        folder          = boxTeaching.boxModel.folder
-        cfg             = ConfigParser()
-        cfg_file        = "%s/%s/para.config"%(folder,model)
-        # cfg.read(cfg_file)
-        cfg["model"]    = {"model":model}
-        for shape in self.canvas.shapes:
-            lb                   = shape.label
-            config               = shape.config
-            cfg[lb]              = config
-        with open(cfg_file,"w") as ff:
-            cfg.write(ff)
-        self.statusBar().showMessage("%s saved"%model,5000)
+        try:
+            boxTeaching     = self.boxTeaching
+            model           = boxTeaching.boxModel.model()
+            folder          = boxTeaching.boxModel.folder
+            cfg             = ConfigParser()
+            cfg_file        = "%s/%s/para.config"%(folder,model)
+            # cfg.read(cfg_file)
+            cfg["model"]    = {"model":model}
+            for shape in self.canvas.shapes:
+                lb                   = shape.label
+                config               = shape.config
+                cfg[lb]              = config
+            with open(cfg_file,"w") as ff:
+                cfg.write(ff)
+            self.statusBar().showMessage("%s saved"%model,5000)
+        except:
+            self.statusBar().showMessage("save %s has a problem"%model,5000)
 
-    def listShapeCliked(self,row):
-        for i in range(len(self.canvas.shapes)):
-            self.canvas.shapes[i].selected = row == i
-            self.canvas.shapeSelected      = self.canvas.shapes[row]
-        pass
     def chooseModel(self):
-        model                     = self.boxTeaching.boxModel.cbb_model.currentText()
+        model                     = self.boxTeaching.boxModel.model()
         folder                    = self.boxTeaching.model_folder
+        if model == "None" or "":
+            self.currentModelConfig = None
+            return
         path                      = "%s/%s/para.config"%(folder,model)
         config                    = ConfigParser()
         config.read(path)

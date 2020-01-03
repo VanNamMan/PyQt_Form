@@ -299,9 +299,9 @@ class MainWindow(QMainWindow):
     def editFont(self):
         a = self.boxFontAndColor.popUp()
         if a :
-            self.color          = a["cvColor"]
-            self.lw             = a["lw"]
-            self.fs             = a["fs"]/10
+            cvFont.color        = a["cvColor"]
+            cvFont.lw           = a["lw"]
+            cvFont.fs           = a["fs"]/10
             self.canvas.fs      = a["fs"]
             self.canvas.color   = a["color"]
         pass

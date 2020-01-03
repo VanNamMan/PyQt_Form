@@ -11,6 +11,14 @@ from utils import *
 #     "removeBlobs"      : removeBlobs          9
 # }
 
+class Font(object):
+    def __init__(self):
+        self.fs = 2.0
+        self.lw = 2
+        self.font = cv2.FONT_HERSHEY_COMPLEX
+        self.color = (0,255,0)
+cvFont = Font()
+
 class Mat(object):
     __checkin__    = np.ndarray
     __checkout__   = np.ndarray
@@ -39,10 +47,13 @@ class Crop(object):
     def __str__(self):
         text = self.__name__ + " : " + str(self.roi)
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return gray2bgr(self.mat)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
 
 class Convert(object):
     __checkin__    = np.ndarray
@@ -55,10 +66,13 @@ class Convert(object):
     def __str__(self):
         text = self.__name__ 
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return gray2bgr(self.mat)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
 class Binary(object):
     __checkin__    = np.ndarray
     __checkout__   = np.ndarray
@@ -71,10 +85,13 @@ class Binary(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat,pprint=False):
         if pprint:
             print(self)
-        return gray2bgr(self.mat)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
 class Blur(object):
     __checkin__    = np.ndarray
     __checkout__   = np.ndarray
@@ -86,10 +103,13 @@ class Blur(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return gray2bgr(self.mat)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
 class Morph(object):
     __checkin__    = np.ndarray
     __checkout__   = np.ndarray
@@ -102,10 +122,13 @@ class Morph(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return gray2bgr(self.mat)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
 class Contours(object):
     __checkin__    = np.ndarray
     __checkout__   = list
@@ -124,10 +147,13 @@ class Contours(object):
         for i in range(len(self)):
             text += "\n\t%d : %s"%(i,str(self[i].shape))
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return draw(self.mat,cnts=self.cnts)
+        if mat is not None:
+            return draw(mat,cnts=self.cnts,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+        else:
+            return draw(self.mat,cnts=self.cnts,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
 
 class Remove(object):
     __checkin__    = list
@@ -150,10 +176,13 @@ class Remove(object):
             box,cnt = self[i]
             text += "\n\t%d : %s , %s"%(i,str(box),str(cnt.shape))
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return draw(self.mat,boxs=self.boxs)
+        if mat is None:
+            return draw(mat=self.mat,boxs=self.boxs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+        else:
+            return draw(mat=mat,boxs=self.boxs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
 
 class OCR(object):
     __checkin__    = np.ndarray
@@ -168,10 +197,13 @@ class OCR(object):
     def __str__(self):
         text = self.__name__ + " :\n" + self.text
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
-        return draw(self.mat,[self.text])
+        if mat is None:
+            return draw(self.mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+        else:
+            return draw(mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
 
 class Match(object):
     __checkin__    = np.ndarray
@@ -196,12 +228,15 @@ class Match(object):
         #     string = "\n\t%d : %s box %s ,score %.2f"%(i,str(box),score)
         #     text += string
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
         texts = ["%.2f"%s for s in self.scores]
         orgs = [(b[0],b[1]) for b in self.boxs]
-        return draw(self.mat,boxs=self.boxs,texts=texts,orgs=orgs)
+        if mat is None:
+            return draw(self.mat,boxs=self.boxs,texts=texts,orgs=orgs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+        else:
+            return draw(mat,boxs=self.boxs,texts=texts,orgs=orgs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
 class Predict(object):
     def __init__(self):
         super(Predict,self).__init__()
@@ -217,7 +252,7 @@ class Predict(object):
             print(self)
         h,w                 = self.mat.shape[:2]
         org                 = (w//2,h//2)
-        return draw(self.mat,texts=["%s"%str(self.result)],orgs=[org])
+        return draw(self.mat,texts=["%s"%str(self.result)],orgs=[org],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
 
 def isGray(mat):
     return len(mat.shape) == 2
@@ -477,22 +512,28 @@ DEF_FUNCTIONS       = {Crop         : crop ,
                        OCR          : ocr,
                        Match        : matching}
 
-def draw(mat,texts=[],boxs=[],cnts=None
-            ,idx    = -1
-            ,orgs   = DEF_POS
-            ,font   = DEF_FONT
-            ,fs     = DEF_FS
-            ,lw     = DEF_LW
-            ,c      = DEF_COLOR):
+def draw(
+         mat    = None
+        ,texts=[]
+        ,boxs=[]
+        ,cnts=None
+        ,idx    = -1
+        ,orgs   = DEF_POS
+        ,font   = cvFont.font
+        ,fs     = DEF_FS
+        ,lw     = DEF_LW
+        ,color  = DEF_COLOR
+        ):
+
     if isGray(mat):
         mat = cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
     for text,org in zip(texts,orgs):
-        cv2.putText(mat,text,org,font,fs,c,lw)
+        cv2.putText(mat,text,org,font,fs,color,lw)
     for box in boxs:
         x,y,w,h = box
-        cv2.rectangle(mat,(x,y),(x+w,y+h),c,lw)
+        cv2.rectangle(mat,(x,y),(x+w,y+h),color,lw)
     if cnts is not None:
-        cv2.drawContours(mat,cnts,idx,c,lw)
+        cv2.drawContours(mat,cnts,idx,color,lw)
     return mat
 
 def test_process(mat,config
@@ -509,14 +550,14 @@ def test_process(mat,config
         if lb and eval(lb) not in keys:
             print("Dont suport \"%s\" funtion"%lb)
         else:
-            try:
+            # try:
                 t0 = time.time()
                 dst           = DEF_FUNCTIONS[eval(lb)](dst,config)
-                visualizes.append(dst.visualize(True))
-                dt        = (time.time()-t0)*1000
+                dt            = (time.time()-t0)*1000
                 print("%s : %d ms"%(lb,dt))
                 results.append(dst)
-            except:
+                visualizes.append(dst.visualize(mat=results[0].mat,pprint=True))
+            # except:
                 print("has a problem at %s"%lb)
     end = time.time()
     dt = (end-start)*1000

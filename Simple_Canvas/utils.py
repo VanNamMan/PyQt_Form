@@ -103,8 +103,8 @@ def newCbb(items,parent):
     addItems(cbb,items)
     return cbb
 
-def newDialogButton(texts,slots,icons):
-    bb = QDialogButtonBox(Qt.Vertical)
+def newDialogButton(texts,slots,icons,orient=Qt.Vertical):
+    bb = QDialogButtonBox(orient)
     for txt,slot,icon in zip(texts,slots,icons):
         but = bb.addButton(txt,QDialogButtonBox.ApplyRole)
         if slot is not None:

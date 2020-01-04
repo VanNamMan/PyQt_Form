@@ -14,11 +14,9 @@ class BoxCamera(QDialog):
         self.timeout    = timeout
         self.visualize  = {"boxs":None,"visualizes":None}
 
-
         layout          = QVBoxLayout()
         self.frame      = QLabel(self)
         self.frame.setAlignment(Qt.AlignCenter)
-
 
         hlayoutTop      = QHBoxLayout()
         self.cbb_camera = newCbb(["0","1","2"])
@@ -27,7 +25,6 @@ class BoxCamera(QDialog):
         widgets = [
             QLabel("Camera"),
             self.cbb_camera,
-            QLabel("FPS : "),
             self.lb_fps
         ]
         addWidgets(hlayoutTop,widgets)
@@ -59,7 +56,7 @@ class BoxCamera(QDialog):
         self.fps = 0
         self.fpsSignal.connect(self.setFPS)
     def setFPS(self,fps):
-        self.lb_fps.setText("%.2f"%fps)
+        self.lb_fps.setText("FPS : %.2f"%fps)
     def isOpened(self):
         return self.cap.isOpened()
     def capture(self):
@@ -342,7 +339,7 @@ class BoxProcessLog(QDialog):
         addWidgets(layout,widget)
 
         self.setLayout(layout)
-        self.showResult([8,9,17],False)
+        self.showResult([8,9,17],None)
     
     def clear(self):
         self.list.clear()
@@ -357,11 +354,14 @@ class BoxProcessLog(QDialog):
         self.numNG.setText("%d"%ng)
         self.numTotal.setText("%d"%total)
         if res is None:
+            self.lb_result.setText("Wait")
             self.lb_result.setStyleSheet(style%"yellow")
         else:
             if res :
+                self.lb_result.setText("OK")
                 self.lb_result.setStyleSheet(style%"green")
             else:
+                self.lb_result.setText("NG")
                 self.lb_result.setStyleSheet(style%"red")
 
 class BoxParameter(QTreeWidget):
@@ -505,26 +505,28 @@ class BoxSelectedFunction(QDialog):
         self.list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list.customContextMenuRequested.connect(self.popUpMenuFunc)
         hlayout         = QHBoxLayout()
-        bb              = newDialogButton(["","",""],
-                                          [self.prevFunc,self.nextFunc,self.deleteFunc],
-                                          ["up","down","delete"])
+        bb              = newDialogButton(["","","",""],
+                                          [self.prevFunc,self.nextFunc,self.deleteFunc,self.deleteAll],
+                                          ["up","down","delete","delete_all"])
         bb.setMaximumWidth(50)
         addWidgets(hlayout,[bb,self.list])
         self.setLayout(hlayout)
         # 
         action             = partial(newAction,self)
+        deleteAll          = action("Delete All",self.deleteAll,"","delete_all")
         deleteFunc         = action("Delete",self.deleteFunc,"","delete",True)
         prevFunc           = action("Up",self.prevFunc,"","up",True)
         nextFunc           = action("Down",self.nextFunc,"","down",True)
         cancel             = action("Cancel",None,"","cancel",True)
 
         self.actions       = struct(
+            deleteAll   = deleteAll,
             deleteFunc  = deleteFunc,
             prevFunc    = prevFunc,
             nextFunc    = nextFunc
         )
         self.funcMenu   = QMenu()
-        addActions(self.funcMenu,[cancel,prevFunc,nextFunc,deleteFunc])
+        addActions(self.funcMenu,[cancel,prevFunc,nextFunc,deleteFunc,deleteAll])
 
     def popUpMenuFunc(self):
         if self.list.count() > 0:
@@ -559,6 +561,8 @@ class BoxSelectedFunction(QDialog):
                 _list.item(row).setSelected(False)
                 _list.item(row+1).setSelected(True)
         pass
+    def deleteAll(self):
+        self.list.clear()
     def deleteFunc(self):
         items = self.list.selectedItems()
         if items :
@@ -754,7 +758,7 @@ if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     # wd = QMainWindow()
-    canvas = BoxProcessLog()
+    canvas = BoxSelectedFunction()
     # wd.setCentralWidget(canvas)
     canvas.showNormal()
     sys.exit(app.exec_())

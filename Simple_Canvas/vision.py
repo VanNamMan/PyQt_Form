@@ -52,7 +52,7 @@ class Convert(object):
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        return self.mat
+        return toBgr(self.mat)
 class Binary(object):
     def __init__(self):
         self.__name__       = "binary"
@@ -65,7 +65,7 @@ class Binary(object):
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        return self.mat
+        return toBgr(self.mat)
 class Blur(object):
     def __init__(self):
         self.__name__       = "blur"
@@ -78,7 +78,7 @@ class Blur(object):
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        return self.mat
+        return toBgr(self.mat)
 class Morph(object):
     def __init__(self):
         self.__name__       = "morphology"
@@ -91,7 +91,7 @@ class Morph(object):
     def visualize(self,pprint=False):
         if pprint:
             print(self)
-        return self.mat  
+        return toBgr(self.mat)
 class Cnts(object):
     def __init__(self):
         self.__name__       = "findContours"
@@ -196,6 +196,11 @@ class Predict(object):
 
 def isGray(mat):
     return len(mat.shape) == 2
+def toBgr(mat):
+    if isGray(mat):
+        return cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
+    else:
+        return mat
 
 def crop(src,config):
     mat     = src.__out__()
@@ -304,7 +309,10 @@ def findContours(src,config):
     elif method     == "none":
         method      = cv2.CHAIN_APPROX_NONE
 
-    _,res.cnts,_    = cv2.findContours(mat,mode,method)
+    if cv2.__version__ > "3":
+      res.cnts,_        = cv2.findContours(mat,mode,method)
+    else:  
+        _,res.cnts,_    = cv2.findContours(mat,mode,method)
     res.mat         = mat
     return res
 

@@ -121,7 +121,7 @@ class Shape(object):
 class Canvas(QWidget):
     drawShape               = pyqtSignal(Shape)
     newShape                = pyqtSignal(Shape)
-    deleteShape             = pyqtSignal()
+    deleteShape             = pyqtSignal(Shape)
     selectedShapeSignal     = pyqtSignal(bool)
     mouseMoveSignal         = pyqtSignal(str,str)
 
@@ -185,6 +185,7 @@ class Canvas(QWidget):
         self.selectedShapeSignal.connect(self._selectedShape)
         self.newShape.connect(self._newShape)
         self.drawShape.connect(self._drawShape)
+        self.deleteShape.connect(self._delShape)
         pass
     
     def enabled_context(self,enable):
@@ -204,7 +205,10 @@ class Canvas(QWidget):
         if self.boxTeaching.autotest.isChecked():
             self.testActionSignal.emit(self.shapes[idx])
         return self.shapes[idx]
-
+    def _delShape(self,shape):
+        self.shapes.remove(self.shapeSelected)
+        self.shapeSelected = None
+        pass
     def _drawShape(self,shape):
         str_cvRect                  = "%d,%d,%d,%d"%shape.cvRect
         str_qRect                   = "%d,%d,%d,%d"%(shape.rect.x()

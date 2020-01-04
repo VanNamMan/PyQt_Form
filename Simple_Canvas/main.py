@@ -40,8 +40,8 @@ class MainWindow(QMainWindow):
         self.dock = QDockWidget('boxTeaching', self)
         self.dock.setWidget(self.boxTeaching)
         self.dock.setFeatures(dockFeatures)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
-        self.dock.hide()
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
+        # self.dock.hide()
 
         self.boxProcessLog  = BoxProcessLog(self)
         self.dock_Log = QDockWidget('Result', self)
@@ -110,6 +110,8 @@ class MainWindow(QMainWindow):
         # loop camera
         # 
     def process(self,mat):
+        if mat is None:
+            return 
         boxs = []
         visualizes  = []
         config = self.currentModelConfig
@@ -186,7 +188,7 @@ class MainWindow(QMainWindow):
         folder          = boxTeaching.boxModel.folder
         cfg             = ConfigParser()
         cfg_file        = "%s/%s/para.config"%(folder,model)
-        cfg.read(cfg_file)
+        # cfg.read(cfg_file)
         cfg["model"]    = {"model":model}
         for shape in self.canvas.shapes:
             lb                   = shape.label
@@ -208,6 +210,8 @@ class MainWindow(QMainWindow):
         config                    = ConfigParser()
         config.read(path)
         self.currentModelConfig   = config
+        if self.stacker.currentWidget() != self.canvas:
+            return
         sections                  = list(config.sections())
         lb_shapes                 = [s for s in sections if "shape" in s]
         self.canvas.items         = []
@@ -270,21 +274,21 @@ class MainWindow(QMainWindow):
     def switchWidget(self):
         if self.sender() == self.actions.auto:
             self.stacker.setCurrentWidget(self.camera)
-            self.dock.hide()
-            self.dock_Log.show()
+            # self.dock.hide()
+            # self.dock_Log.show()
         elif self.sender() == self.actions.manual:
             self.stacker.setCurrentWidget(self.manual)
-            self.dock.hide()
-            self.dock_Log.hide()
+            # self.dock.hide()
+            # self.dock_Log.hide()
         elif self.sender() == self.actions.teach:
             self.stacker.setCurrentWidget(self.canvas)
             self.actions.open_.setEnabled(True)
-            self.dock.show()
-            self.dock_Log.hide()
+            # self.dock.show()
+            # self.dock_Log.hide()
         elif self.sender() == self.actions.data:
             self.stacker.setCurrentWidget(self.data)
-            self.dock.hide()
-            self.dock_Log.hide()
+            # self.dock.hide()
+            # self.dock_Log.hide()
         pass
     
     def editFont(self):

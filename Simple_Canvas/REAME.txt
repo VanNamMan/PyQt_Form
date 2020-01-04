@@ -1,12 +1,25 @@
-pip install pillow
-pip install pyautogui
-pip install opencv-contrib-python
-pip install numpy
 
-pyrcc5 -o resources.py resources.qrc
+#
+pip freeze > requirements.txt
+# create env 
+- for window :
+    pip install virtualenv
+    virtualenv my_name
+    pip install -r requirements.txt
 
-python screen_capture.py
+    my_name\Scripts\activate
+    pyrcc5 -o resources.py resources.qrc
+    python main.py
+- for ubuntu:
+    pip install virtualenv
+    virtualenv my_name
+    pip install -r requirements.txt
+    
+    source my_name/bin/activate
+    pyrcc5 -o resources.py resources.qrc
+    python main.py
+# deactivate env
+    deactivate
 
-python gui.py
 
 

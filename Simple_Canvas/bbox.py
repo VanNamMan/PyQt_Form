@@ -1,4 +1,5 @@
 from utils import*
+from vision2 import*
 import resources
 
 BB = QDialogButtonBox
@@ -484,6 +485,9 @@ class BoxFunction(QListWidget,QDialog):
     itemClickedSignal   = pyqtSignal(QListWidgetItem)
     def __init__(self,items,parent=None):
         super(BoxFunction,self).__init__(parent)
+
+        self.currentItemChanged.connect(self.itemClicked_)
+        self.itemClicked.connect(self.itemClicked_)
         if items:
             addItems(self,items)
             for i in range(len(items)):
@@ -491,10 +495,16 @@ class BoxFunction(QListWidget,QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(not Qt.Checked)
 
-        self.itemClicked.connect(self.itemClicked_)
+        
     
     def itemClicked_(self,item):
+        row = self.currentIndex()
+        fun = eval(item.text())
+        tooltip = DEF_FUNCTIONS[fun].__doc__
+        self.setToolTip(tooltip)
         self.itemClickedSignal.emit(item)
+
+
 
 class BoxSelectedFunction(QDialog):
     itemRightClickedSignal   = pyqtSignal(QListWidgetItem)
@@ -513,11 +523,11 @@ class BoxSelectedFunction(QDialog):
         self.setLayout(hlayout)
         # 
         action             = partial(newAction,self)
-        deleteAll          = action("Delete All",self.deleteAll,"","delete_all")
-        deleteFunc         = action("Delete",self.deleteFunc,"","delete",True)
-        prevFunc           = action("Up",self.prevFunc,"","up",True)
-        nextFunc           = action("Down",self.nextFunc,"","down",True)
-        cancel             = action("Cancel",None,"","cancel",True)
+        deleteAll          = action("Delete All",self.deleteAll,"","delete_all","delete all functions")
+        deleteFunc         = action("Delete",self.deleteFunc,"","delete","delete function")
+        prevFunc           = action("Up",self.prevFunc,"","up","prev function")
+        nextFunc           = action("Down",self.nextFunc,"","down","next function")
+        cancel             = action("Cancel",None,"","cancel","cancel")
 
         self.actions       = struct(
             deleteAll   = deleteAll,
@@ -758,7 +768,7 @@ if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     # wd = QMainWindow()
-    canvas = BoxSelectedFunction()
+    box = BoxSelectedFunction(["A","B","C"])
+    box.show()
     # wd.setCentralWidget(canvas)
-    canvas.showNormal()
     sys.exit(app.exec_())

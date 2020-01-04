@@ -128,7 +128,7 @@ def addWidgets(layout,wds):
 def addTriggered(action,trigger):
     action.triggered.connect(trigger)
 
-def newAction(parent,text,slot=None,shortcut=None,icon=None,enabled=True):
+def newAction(parent,text,slot=None,shortcut=None,icon=None,tooltip=None,enabled=True):
     a = QAction(text,parent)
     if icon is not None:
         a.setIcon(newIcon(icon))
@@ -136,6 +136,8 @@ def newAction(parent,text,slot=None,shortcut=None,icon=None,enabled=True):
         a.setShortcut(shortcut)
     if slot is not None:
         a.triggered.connect(slot)
+    if tooltip is not None:
+        a.setToolTip(tooltip)
     a.setEnabled(enabled)
     return a
 

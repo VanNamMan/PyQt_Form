@@ -5,64 +5,184 @@ import resources
 BB = QDialogButtonBox
 DEFAUT_COLOR = QColor(0,255,0,255)
 
+class BBox(QDialog):
+    def __init__(self):
+        super(BBox,self).__init__()
+        layout = QVBoxLayout()
+        bb = BB(BB.Ok|BB.Cancel)
+        bb.rejected.connect(self.reject)
+        bb.accepted.connect(self.accept)
+        layout.addWidget(bb)
+        self.setLayout(layout)
+    def popUp(self):
+        self.move(QCursor.pos())
+        return True if self.exec_() else False
+
+class BoxPassword(QDialog):
+    def __init__(self,parent=None):
+        super(BoxPassword,self).__init__(parent)
+        self.setWindowTitle("Password")
+        layout = QVBoxLayout()
+        bb = BB(BB.Ok|BB.Cancel)
+        bb.rejected.connect(self.reject)
+        bb.accepted.connect(self.accept)
+        self.ln_password = QLineEdit()
+        self.ln_password.setFocus()
+        self.ln_password.setEchoMode(QLineEdit.Password)
+        addWidgets(layout,[self.ln_password,bb])
+        self.setLayout(layout)
+    def popUp(self):
+        self.move(QCursor.pos())
+        return self.ln_password.text() if self.exec_() else ""
+
+class BoxImageResult(QDialog):
+    def __init__(self,parent=None):
+        super(BoxImageResult,self).__init__(parent)
+        layout          = QVBoxLayout()
+        self.frame      = QLabel(self)
+        self.frame.setAlignment(Qt.AlignCenter)
+        addWidgets(layout,[self.frame])
+        self.setLayout(layout)
+
+class BoxButtons(QDialog):
+    def __init__(self,parent=None):
+        super(BoxButtons,self).__init__(parent)
+        self.but_auto       = newButton("Auto",self.switchWidget,"home")
+        self.but_manual     = newButton("Manual",self.switchWidget,"manual")
+        self.but_teach      = newButton("Teach",self.switchWidget,"teach")
+        self.but_data       = newButton("Data",self.switchWidget,"data")
+        widgets=[
+            self.but_auto,
+            self.but_manual,
+            self.but_teach,
+            self.but_data
+        ]
+        layout = QHBoxLayout()
+        addWidgets(layout,widgets)
+        self.setMaximumHeight(100)
+        for w in widgets:
+            w.setFixedHeight(50)
+        self.setLayout(layout)
+    
+    def switchWidget(self):
+        window = self.window()
+        if self.sender() == self.but_auto:
+            window.stacker.setCurrentWidget(window.camera)
+        elif self.sender() == self.but_manual:
+            window.stacker.setCurrentWidget(window.manual)
+        elif self.sender() == self.but_teach:
+            window.stacker.setCurrentWidget(window.canvas)
+        elif self.sender() == self.but_data:
+            window.stacker.setCurrentWidget(window.data)
+        pass
+    
 class BoxCamera(QDialog):
-    signal  = pyqtSignal(np.ndarray)
+    WEBCAM = "Webcam"
+    BASLER = "Basler"
+    signal = pyqtSignal(np.ndarray)
     fpsSignal     = pyqtSignal(float)
-    def __init__(self,i,timeout,parent=None):
+    def __init__(self,timeout,button=False,parent=None):
         super(BoxCamera,self).__init__(parent)
         self.setWindowTitle("Camera Dialog")
-        self.cap        = cv2.VideoCapture(i)
-        self.mat = None
-        self.timeout    = timeout
-        self.visualize  = {"boxs":None,"visualizes":None}
-
         layout          = QVBoxLayout()
         self.frame      = QLabel(self)
         self.frame.setAlignment(Qt.AlignCenter)
 
         hlayoutTop          = QHBoxLayout()
-        self.cbb_camera     = newCbb(["Webcam","Basler"])
-        self.ln_idCamera    = QLineEdit(self)
+        self.cbb_camera     = newCbb([self.WEBCAM,self.BASLER])
+        self.ln_idCamera    = QLineEdit("0",self)
+        self.but_connect    = newButton("Open",self.openCamera,"openCamera")
         self.lb_fps         = QLabel("",self)
         # self.lb_fps.setMaximumHeight(50)
         widgets = [
             QLabel("Camera"),
             self.cbb_camera,
             self.ln_idCamera,
+            self.but_connect,
             self.lb_fps
         ]
         addWidgets(hlayoutTop,widgets)
         widgetTop = QWidget()
         widgetTop.setLayout(hlayoutTop)
         widgetTop.setMaximumHeight(50)
-        widgetTop.setMaximumWidth(500)
+        # widgetTop.setMaximumWidth(500)
 
-        hlayout         = QHBoxLayout()
-        self.but_start = newButton("Start",self.start,"start")
-        self.but_stopt = newButton("Stop",self.stop,"stop")
-        self.but_reset = newButton("Reset",self.reset,"reset")
-        self.but_grab = newButton("Grab",self.capture,"grab")
-        widgets = [
-            self.but_start,
-            self.but_stopt,
-            self.but_grab,
-            self.but_reset
-        ]
-        addWidgets(hlayout,widgets)
-        widgets = [
-            widgetTop,
-            self.frame,
-            hlayout
-        ]
+        if button:
+            hlayout        = QHBoxLayout()
+            self.but_start = newButton("Start",self.start,"start")
+            self.but_stop = newButton("Stop",self.stop,"stop")
+            self.but_reset = newButton("Reset",self.reset,"reset")
+            self.but_grab  = newButton("Grab",self.capture,"grab")
+            widgets = [
+                self.but_start,
+                self.but_stop,
+                self.but_grab,
+                self.but_reset
+            ]
+            addWidgets(hlayout,widgets)
+            widgets = [
+                widgetTop,
+                hlayout,
+                self.frame
+            ]
+        else:
+            widgets = [
+                widgetTop,
+                self.frame
+            ]
+
         addWidgets(layout,widgets)
         self.setLayout(layout)
+
+        self.cap        = None
+        self.type       = ""
+        self.mat        = None
+        self.timeout    = timeout
+        self.visualize  = {"boxs":None,"visualizes":None}
+
         self.bStart = False
         self.fps = 0
         self.fpsSignal.connect(self.setFPS)
+
+    def openCamera(self):
+        camera = self.cbb_camera.currentText()
+        id_camera = self.ln_idCamera.text()
+        if self.but_connect.text() == "Open":
+            if camera == self.WEBCAM:
+                self.type = self.WEBCAM
+                id_camera = int(id_camera)
+                if self.cap is not None:
+                    self.cap.release()
+                self.cap = cv2.VideoCapture(id_camera)
+                if self.cap.isOpened():
+                    self.window().boxProcess.log("Camera %d is opened"%id_camera)
+                else:
+                    self.window().boxProcess.log("Camera %d failed"%id_camera)
+            elif camera == self.BASLER:
+                self.type = self.BASLER
+            
+            self.but_connect.setText("Close")
+            self.cbb_camera.setEnabled(False)
+            self.ln_idCamera.setEnabled(False)
+
+        elif self.but_connect.text() == "Close":
+            if camera == self.WEBCAM:
+                self.cap.release()
+            elif camera == self.BASLER:
+                pass
+            self.but_connect.setText("Open")
+            self.cbb_camera.setEnabled(True)
+            self.ln_idCamera.setEnabled(True)
+
+        pass
     def setFPS(self,fps):
         self.lb_fps.setText("FPS : %.2f"%fps)
     def isOpened(self):
-        return self.cap.isOpened()
+        if self.type == self.WEBCAM:
+            return self.cap.isOpened()
+        elif self.type == self.BASLER:
+            return True
+
     def capture(self):
         mkdir("grab")
         mat = self.grab()
@@ -71,26 +191,44 @@ class BoxCamera(QDialog):
             if cv2.imwrite(filename,mat):
                 print("image saved at %s"%filename)
     def grab(self):
-        ret,self.mat = self.cap.read()
+        ret = False
+        self.mat = None
+        if self.type == self.WEBCAM:
+            ret,self.mat = self.cap.read()
+        elif self.type == self.BASLER:
+            pass
         if ret:
             return self.mat
         else:
             return None
     def start(self):
+        if self.cap is None:
+            return
         self.bStart     = True
         runThread(self.loop,args=())
+        self.but_connect.setEnabled(False)
         self.window().boxProcess.log("start")
+        self.window().boxTeaching.setEnabled(False)
         pass
     def stop(self):
-        self.bStart = False
-        self.window().boxProcess.log("stop")
+        if self.bStart :
+            self.bStart = False
+            self.but_connect.setEnabled(True)
+            self.window().boxProcess.log("stop")
+            self.window().boxTeaching.setEnabled(True)
         pass
     def reset(self):
         pass
     def release(self):
         self.bStart  = False
         time.sleep(0.01)
-        self.cap.release()
+        if self.type == self.WEBCAM:
+            if self.cap is not None:
+                self.cap.release()
+        elif self.type == self.BASLER:
+            if self.cap is not None:
+                pass
+
     def loop(self):
         print("loop camera started")
         fps = 0
@@ -100,17 +238,19 @@ class BoxCamera(QDialog):
             if mat is not None:
                 boxs         = self.visualize["boxs"]
                 visualizes   = self.visualize["visualizes"]
-                if visualizes is not None:
-                    copy = mat.copy()
+                copy         = mat.copy()
+                if visualizes:
                     for box,vis in zip(boxs,visualizes):
-                        x,y,w,h = box
-                        copy[y:y+h,x:x+w] = vis
+                        if box is not None:
+                            x,y,w,h = box
+                            copy[y:y+h,x:x+w] = vis
                     showImage(copy,self.frame)
                 else:
                     showImage(mat,self.frame)
 
                 # emit to run process
-                self.signal.emit(self.grab())
+                if self.isOpened() is not None:
+                    self.signal.emit(self.grab())
 
                 #  emit FPS
                 fps+=1
@@ -357,17 +497,28 @@ class BoxProcessResult(QDialog):
 
         self.lb_result      = QLabel("Wait",self)
         self.lb_result.setAlignment(Qt.AlignCenter)
-        # self.lb_result.setMinimumHeight(300)
-        style = "color:black;font:bold 72px;border-width:3px;border-color:black;border-style: outset"
-        self.lb_result.setStyleSheet(style)
 
         self.but_clear      = newButton("Clear",self.clear,"clear")
+
+        hlayout        = QHBoxLayout()
+        self.but_start = newButton("Start",None,"start")
+        self.but_stop = newButton("Stop",None,"stop")
+        self.but_reset = newButton("Reset",None,"reset")
+        self.but_grab  = newButton("Grab",None,"grab")
+        widgets = [
+            self.but_start,
+            self.but_stop,
+            self.but_grab,
+            self.but_reset
+        ]
+        addWidgets(hlayout,widgets)
         
         widget = [
             grid,
             self.lb_result,
             self.list,
-            self.but_clear
+            self.but_clear,
+            hlayout
         ]
         layout = QVBoxLayout()
         addWidgets(layout,widget)
@@ -381,7 +532,7 @@ class BoxProcessResult(QDialog):
         self.list.addItem("%s : %s"%(getStrTime(),text))
     
     def showResult(self,nums,res=None):
-        style = "color:black;font:bold 72px;border-width:3px;background:%s \
+        style = "color:black;font:bold 36px;border-width:3px;background:%s \
         ;border-color:black;border-style: outset"
         ok , ng ,total = nums
         self.numOK.setText("%d"%ok)
@@ -606,6 +757,8 @@ class BoxTeaching(QDialog):
         self.model_folder           = model_folder
         self.boxModel               = BoxModel(model_folder)
         self.listShape              = QListWidget(self)
+        self.listShapeStatus        = QListWidget(self)
+        self.listShapeTimeInfer     = QListWidget(self)
         self.boxFunction            = BoxFunction(funcs)
         self.boxSelectedFunction    = BoxSelectedFunction()
         self.boxParameter           = BoxParameter()
@@ -620,9 +773,13 @@ class BoxTeaching(QDialog):
 
         tab1                        = QWidget()
         layout1                     = QVBoxLayout()
+        sub_layout                  = QHBoxLayout()
+        self.listShapeStatus.setMaximumWidth(50)
+        self.listShapeTimeInfer.setMaximumWidth(50)
+        addWidgets(sub_layout,[self.listShape,self.listShapeStatus,self.listShapeTimeInfer])
         widgets1 = [
             self.boxModel,
-            self.listShape,
+            sub_layout,
             QLabel("select functions"),
             self.boxFunction,
             QLabel("processing"),
@@ -768,19 +925,6 @@ class BoxTeaching(QDialog):
         }
         return config
 
-class BBox(QDialog):
-    def __init__(self):
-        super(BBox,self).__init__()
-        layout = QVBoxLayout()
-        bb = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel)
-        bb.rejected.connect(self.reject)
-        bb.accepted.connect(self.accept)
-        layout.addWidget(bb)
-        self.setLayout(layout)
-    def popUp(self):
-        self.move(QCursor.pos())
-        return True if self.exec_() else False
-
 
 if __name__ == "__main__":
     QColor().red
@@ -788,8 +932,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     wd = QMainWindow()
     # box = BoxSelectedFunction(["A","B","C"])
-    box = BoxTableWidget(["Time","Header1","Header2"])
-    wd.setCentralWidget(box)
-    wd.show()
+    box = BoxCamera(0.005,button=False)
+    box.show()
+    # wd.setCentralWidget(box)
+    # wd.show()
     # wd.setCentralWidget(canvas)
     sys.exit(app.exec_())

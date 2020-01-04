@@ -399,7 +399,7 @@ def findContours(src:Mat,config)->Contours:
         method      = cv2.CHAIN_APPROX_SIMPLE
     elif method     == "none":
         method      = cv2.CHAIN_APPROX_NONE
-    if cv2.__version__ > "3":
+    if cv2.__version__ > "4":
         res.cnts,_    = cv2.findContours(mat,mode,method)
     else:
         _,res.cnts,_    = cv2.findContours(mat,mode,method)
@@ -477,25 +477,27 @@ def matching(src:Mat,config)->Match:
         res.scores          = [max_val]
         res.predicts        = [True if max_val > score else False]
     else:
-        res.boxs        = []
-        res.scores      = []
+        boxs        = []
+        scores      = []
         res.predicts    = []
         loc = np.where( result >= score)
         for pt in zip(*loc[::-1]):
             x,y = pt
-            res.boxs.append([x,y,w0,h0])
-            res.scores.append(result[y,x])
+            boxs.append([x,y,w0,h0])
+            scores.append(result[y,x])
             res.predicts.append(True)
-    res.mat         = mat
-    #  sorting boxs
-    _ , C        = sort_matching(res.boxs,res.scores,epsilon=50)
 
-    res.boxs        = []
-    res.scores      = []
-    for key,val in C.items():
-        b,s = val[-1]
-        res.boxs.append(b)
-        res.scores.append(s)
+        #  sorting boxs , find boxs max score
+        C        = sort_matching(boxs,scores,epsilon=50)
+
+        res.boxs        = []
+        res.scores      = []
+        for key,val in C.items():
+            b,s = val[-1]
+            res.boxs.append(b)
+            res.scores.append(s)
+
+    res.mat         = mat
     return res
 
 def predict(src,config):
@@ -614,7 +616,7 @@ def test_process(mat,config,bTeaching=True,pprint=True
         if lb and eval(lb) not in keys:
             print("Dont suport \"%s\" funtion"%lb)
         else:
-            try:
+            # try:
                 t0 = time.time()
                 dst           = DEF_FUNCTIONS[eval(lb)](dst,config)
                 dt            = (time.time()-t0)*1000
@@ -624,8 +626,8 @@ def test_process(mat,config,bTeaching=True,pprint=True
                     visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint))
                 else:
                     visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint))
-            except:
-                print("has a problem at %s"%lb)
+            # except:
+            #     print("has a problem at %s"%lb)
     end = time.time()
     dt = (end-start)*1000
     print("time inferenc : %d ms"%(dt))

@@ -13,6 +13,7 @@ class Proc(object):
         self.busy = False
         self.config = config
         #  result
+        self.time_inference = 0 # ms
         self.box  = []
         self.visualize = []
     
@@ -20,6 +21,7 @@ class Proc(object):
         return not self.busy
 
 class MainWindow(QMainWindow):
+    shapeStatus = pyqtSignal(int,bool,str,str,int) # idshape,status,start_time,stop_time,inference_time
     def __init__(self):
         super(MainWindow,self).__init__()
         self.setWindowTitle("Automation 2G - Vision Master")
@@ -49,7 +51,7 @@ class MainWindow(QMainWindow):
 
         self.boxTeaching.boxModel.cbb_model.activated.connect(self.chooseModel)
 
-        self.dock_teach = QDockWidget('boxTeaching', self)
+        self.dock_teach = QDockWidget('BoxTeaching', self)
         self.dock_teach.setWidget(self.boxTeaching)
         self.dock_teach.setFeatures(dockFeatures)
         
@@ -58,31 +60,50 @@ class MainWindow(QMainWindow):
         self.dock_proc.setWidget(self.boxProcess)
         self.dock_proc.setFeatures(dockFeatures)
 
+        self.boxImageResult  = BoxImageResult(self)
+        self.dock_imageResult = QDockWidget('ImageResult', self)
+        self.dock_imageResult.setWidget(self.boxImageResult)
+        self.dock_imageResult.setFeatures(dockFeatures)
+
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_proc)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_imageResult)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_teach)
         
-        toggleParaDock = self.dock_teach.toggleViewAction()
-        toggleLogDock  = self.dock_proc.toggleViewAction()
+        toggleParaDock                  = self.dock_teach.toggleViewAction()
+        toggleLogImageResultDock        = self.dock_imageResult.toggleViewAction()
+        toggleLogDock                   = self.dock_proc.toggleViewAction()
+
+        toggleParaDock.setShortcut("ctrl+shift+t")
+        toggleLogImageResultDock.setShortcut("ctrl+shift+i")
+        toggleLogDock.setShortcut("ctrl+shift+r")
         
-        self.camera               = BoxCamera(0,0.005,self)
-        #  connect mat from camera to image process
-        self.camera.signal.connect(self.run_process)
-        # self.boxProcessLog      = BoxProcessLog(self)
-        self.frame              = QLabel()
+        self.camera               = BoxCamera(0.005,button=False,parent=self)
 
+        # connect to camera
+        self.boxProcess.but_start.clicked.connect(self.camera.start)
+        self.boxProcess.but_stop.clicked.connect(self.camera.stop)
+        self.boxProcess.but_grab.clicked.connect(self.camera.capture)
+        self.boxProcess.but_reset.clicked.connect(self.camera.reset)
+        # 
+        # self.frame              = QLabel()
+
+        # stacker
         self.manual = QWidget()
+        self.manual.setStyleSheet("background:blue")
         self.data   = QWidget()
-
+        self.data.setStyleSheet("background:green")
         self.canvas = Canvas(self)
-        self.canvas.mouseMoveSignal.connect(self.mouseMove)
-        self.canvas.testActionSignal.connect(self.predict_teaching)
-        self.canvas.cropActionSignal.connect(self.cropImage)
-
         self.stacker = QStackedWidget(self)
         addWidgets(self.stacker,[self.camera,self.manual,self.canvas,self.data])
+        
+        self.button_widget = BoxButtons(self)
 
         self.scroll = QScrollArea()
-        self.scroll.setWidget(self.stacker)
+        center_layout = QVBoxLayout()
+        addWidgets(center_layout,[self.stacker,self.button_widget])
+        widget = QWidget()
+        widget.setLayout(center_layout)
+        self.scroll.setWidget(widget)
         self.scroll.setWidgetResizable(True)
 
         self.setCentralWidget(self.scroll)
@@ -118,9 +139,22 @@ class MainWindow(QMainWindow):
         )
 
         addActions(file,[open_])
-        addActions(view,[auto,manual,teach,data,toggleLogDock,toggleParaDock])
+        addActions(view,[auto,manual,teach,data
+                    ,toggleLogDock
+                    ,toggleParaDock
+                    ,toggleLogImageResultDock])
         addActions(edit,[font,editing,self.canvas.actions.test
                 ,self.canvas.actions.testAll,self.canvas.actions.delete])
+
+        #  signal
+        #  connect mat from camera to image process
+        self.camera.signal.connect(self.run_process)
+        # shape status signal
+        self.shapeStatus.connect(self.setShapeStatus)
+        # canvas signal
+        self.canvas.mouseMoveSignal.connect(self.mouseMove)
+        self.canvas.testActionSignal.connect(self.predict_teaching)
+        self.canvas.cropActionSignal.connect(self.cropImage)
 
         # init variable , loop camera
         self.OnInit() 
@@ -130,47 +164,48 @@ class MainWindow(QMainWindow):
 
     def OnInit(self):
         self.processes = [] # control process for each shape
-    #     self.resetBoxAndVisual() # reset all shape result
-    #     pass 
-    # def resetBoxAndVisual(self):
-    #     self.box_process = []
-    #     self.visualize_process = []
-        
-
+        # defautl camera 
+        self.camera.openCamera()
+    def setShapeStatus(self,i,status,start,stop,inference_time):
+        # if start :
+        #     self.boxProcess.log("%s : Shape-%d process is starting."%(start,i))
+        # if stop :
+        #     self.boxProcess.log("%s : Shape-%d process is done."%(stop,i))
+        item1 = self.canvas.boxTeaching.listShapeStatus.item(i)
+        item2 = self.canvas.boxTeaching.listShapeTimeInfer.item(i)
+        if item1 is not None and status:
+            item1.setText("RUNNING")
+            item1.setBackground(Qt.red)
+        elif item1 is not None:
+            item1.setText("FREE")
+            item1.setBackground(Qt.green)
+            item2.setText("%d ms"%inference_time)
     def run_process(self,mat):
         if mat is None:
             return 
-        #  reset box before run image process
-        # self.resetBoxAndVisual()
-        self.camera.visualize = {"boxs":None,"visualizes":None}
-        config = self.currentModelConfig
-        # self.bProc = []
-
         def shapeProc(i,proc):
-            print("\n%s : Shape-%d process is starting."%(getStrTime(),i))
+            # update process status 
             proc.busy = True
+            start = getStrTime()
+            self.shapeStatus.emit(i,True,start,"",proc.time_inference)
+            t0 = time.time()
+            # image process
             results,vis  = self.predict(proc.config,mat,pprint=True)
+            # show result 
             proc.box = results[0].roi
             proc.visualize = (vis[-1])
+            self.camera.visualize["boxs"][i] = proc.box
+            self.camera.visualize["visualizes"][i] = proc.visualize
+            # update process status
+            stop = getStrTime()
+            proc.time_inference = int((time.time()-t0)*1000)
             proc.busy = False
-            print("\n%s : Shape-%d process is done."%(getStrTime(),i))
-            # self.camera.visualize = {"boxs":self.box_process,"visualizes":self.visualize_process}
+            self.shapeStatus.emit(i,False,"",stop,proc.time_inference)
             pass
         # 
-        # if config is None:
-        #     return
         for i,proc in enumerate(self.processes):
             if proc.isDone():
                 runThread(shapeProc,args=(i,proc))
-                pass
-
-        #         runThread(shapeProc,args=(config,))
-    
-                # results,vis  = self.predict(config,mat,False)
-                # if results:
-                #     boxs.append(results[0].roi)
-                #     visualizes.append(vis[-1])
-            
         pass
     def apply(self):
         if self.canvas.shapeSelected is None:
@@ -200,31 +235,11 @@ class MainWindow(QMainWindow):
         resutls,visualizes  = test_process(mat,config,bTeaching=False,pprint=pprint)
         return resutls,visualizes
 
-    def autoPredict(self):
-        for i in range(len(self.canvas.shapes)):
-            runThread(self.loopAutoPredict,args=(i,))
-
-    def loopAutoPredict(self,iShape):
-        self.showMessage("Auto test starting")
-        timeout         = float(self.boxTeaching.ln_timeout.text())/1000
-        n               = self.boxTeaching.cbb_shape.count()
-
-        while True:
-            index       = self.boxTeaching.cbb_shape.currentIndex()
-            state       = self.boxTeaching.autotest.checkState()
-            if index == -1:
-                pass
-            else:
-                bTeaching = iShape == index
-                self.predict(self.canvas.shapes[iShape],mat=self.canvas.mat,teaching=bTeaching)
-            
-            time.sleep(timeout)
-            if not state:
-                break
-
-        self.showMessage("Auto test stopped")
-
     def saveAll(self):
+        dialog = BoxPassword(self)
+        pass_ = self.config["password"]["pass"]
+        if not dialog.popUp() == pass_:
+            return
         try:
             boxTeaching     = self.boxTeaching
             model           = boxTeaching.boxModel.model()
@@ -246,8 +261,11 @@ class MainWindow(QMainWindow):
     def chooseModel(self):
         model                     = self.boxTeaching.boxModel.model()
         folder                    = self.boxTeaching.model_folder
+        self.currentModelConfig   = None
+        self.processes = []
+        self.camera.visualize     = {"boxs":[],"visualizes":[]}
         if model == "None" or "":
-            self.currentModelConfig = None
+            
             return
         path                      = "%s/%s/para.config"%(folder,model)
         config                    = ConfigParser()
@@ -258,7 +276,10 @@ class MainWindow(QMainWindow):
                 # bProc[section]      = False
                 shapeConfig       = configProxy2dict(self.currentModelConfig[section])
                 self.processes.append(Proc(shapeConfig))
+                self.camera.visualize["boxs"].append(None)
+                self.camera.visualize["visualizes"].append(None)
 
+        
         if self.stacker.currentWidget() != self.canvas:
             return
         sections                  = list(config.sections())
@@ -267,6 +288,13 @@ class MainWindow(QMainWindow):
         self.canvas.shapes        = []
         self.canvas.shapeSelected = None
         self.boxTeaching.listShape.clear()
+
+        self.canvas.items = lb_shapes
+        addItems(self.boxTeaching.listShape,self.canvas.items)
+        status = ["free" for item in self.canvas.items]
+        addItems(self.boxTeaching.listShapeStatus,status)
+        status = ["0 ms" for item in self.canvas.items]
+        addItems(self.boxTeaching.listShapeTimeInfer,status)
 
         for i,lb in enumerate(lb_shapes):
             cfg                   = config[lb]
@@ -284,9 +312,6 @@ class MainWindow(QMainWindow):
             shape.scaled_()
             
             self.canvas.shapes.append(shape)
-
-        self.canvas.items = lb_shapes
-        addItems(self.boxTeaching.listShape,self.canvas.items)
         return 
 
     def cropImage(self,shape):
@@ -323,21 +348,13 @@ class MainWindow(QMainWindow):
     def switchWidget(self):
         if self.sender() == self.actions.auto:
             self.stacker.setCurrentWidget(self.camera)
-            # self.dock.hide()
-            # self.dock_Log.show()
         elif self.sender() == self.actions.manual:
             self.stacker.setCurrentWidget(self.manual)
-            # self.dock.hide()
-            # self.dock_Log.hide()
         elif self.sender() == self.actions.teach:
             self.stacker.setCurrentWidget(self.canvas)
             self.actions.open_.setEnabled(True)
-            # self.dock.show()
-            # self.dock_Log.hide()
         elif self.sender() == self.actions.data:
             self.stacker.setCurrentWidget(self.data)
-            # self.dock.hide()
-            # self.dock_Log.hide()
         pass
     
     def editFont(self):

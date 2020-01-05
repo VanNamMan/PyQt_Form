@@ -60,12 +60,6 @@ def inSide(x,tup):
             return m < x
     elif m == -1:
         return x < M
-def drawRect(mat,box,color=(0,255,0),lw=2):
-    x,y,w,h = box
-    cv2.rectangle(mat,(x,y),(x+w,y+h),color,lw)
-
-def drawText(mat,text,org,color=(0,255,0),fs=1,lw=2):
-    cv2.putText(mat,text,org,cv2.FONT_HERSHEY_COMPLEX,fs,color,lw)
 
 def distance(v1,v2):
     assert len(v1)==len(v2),print("v1,v2 need same length")
@@ -94,6 +88,23 @@ def newDialogButton(texts,slots,icons,orient=Qt.Vertical):
             but.setIcon(newIcon(icon))
     return bb
 
+def newSlider(parent,_range,value,step,slot=None):
+    sl = QSlider(Qt.Horizontal,parent)
+    a,b = _range
+    sl.setRange(a,b)
+    sl.setValue(value)
+    sl.setSingleStep(step)
+    if slot is not None:
+        sl.valueChanged.connect(slot)
+    return sl
+
+def newCheckBox(parent,text,state=False,slot=None):
+    ch = QCheckBox(text,parent)
+    ch.setCheckState(state)
+    if slot is not None:
+        ch.stateChanged.connect(slot)
+    return ch
+    
 def newIcon(icon):
     return QIcon(':/' + icon)
 

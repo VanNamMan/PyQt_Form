@@ -500,8 +500,21 @@ def matching(src:Mat,config)->Match:
     res.mat         = mat
     return res
 
-def predict(src,config):
-    mat         = src.mat
+def predict(src,decision):
+    for key,value in decision.items():
+        state           = value["state"]
+        value           = str2ListInt(value["threshold"])
+        mat             = src.mat
+        pred            = True
+        
+        if key == "Mean":
+            mean,_   = meanStd(mat)
+            dis      = distance(mean,value)
+             
+        elif key == "CountNoneZero":
+            pass
+        elif key == "Remove":
+            pass
 
 
 DEF_FUNCTIONS       = {Crop         : crop ,
@@ -568,6 +581,9 @@ def sort_matching(boxs,scores,epsilon=10):
         C[key]  = val
 
     return C
+def meanStd(mat):
+    mean,std = cv2.meanStdDev(mat)
+    return np.squeeze(mean),np.squeeze(std)
 
 def gray2bgr(mat):
     if not isGray(mat):
@@ -607,6 +623,7 @@ def test_process(mat,config,bTeaching=True,pprint=True
     # ======================
     dst         = Mat(mat)
     lb_funcs    = config["function"]["Functions"].split(",")
+    decision    = config["decision"]
     keys        = list(DEF_FUNCTIONS.keys())
     results     = []
     visualizes  = []
@@ -646,12 +663,13 @@ if __name__ == "__main__":
     # t.start()
     
     config      = ConfigParser()
-    config.read("demo/para.config")
+    config.read("Model/WebCam-0/para.config")
     config      = config["shape-0"]
     config      = configProxy2dict(config)
+    print(type(config["decision"]["Mean"]["state"]))
 
-    m = Mat(mat)
-    print(crop.__doc__)
+    # m = Mat(mat)
+    # print(crop.__doc__)
     # funcs       = ["Crop","Binary","Morph","Remove"]
 
     # ret,msg = checkin(funcs,mat)

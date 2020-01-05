@@ -44,6 +44,189 @@ class BoxImageResult(QDialog):
         addWidgets(layout,[self.frame])
         self.setLayout(layout)
 
+class BoxDecision(QWidget):
+    def __init__(self,parent=None):
+        super(BoxDecision,self).__init__(parent)
+        checkbox = partial(newCheckBox,self)
+        self.ch_mean            = checkbox("Use",slot=self.stateChanged)
+        self.ch_remove          = checkbox("Use",slot=self.stateChanged)
+        self.ch_countNoneZero   = checkbox("Use",slot=self.stateChanged)
+        self.ln_mean            = QLineEdit("100",self)
+        self.ln_vMean           = QLineEdit("0,0,0",self)
+        self.ln_countNoneZero   = QLineEdit("100",self)
+        self.ln_remove          = QLineEdit("0",self)
+
+        self.cbb_mean           = newCbb(["LessThan","MoreThan"],self.stateChanged)
+        self.cbb_countNoneZero  = newCbb(["LessThan","MoreThan"],self.stateChanged)
+        self.cbb_remove         = newCbb(["LessThan","MoreThan"],self.stateChanged)
+
+        self.ln_mean.textChanged.connect(self.stateChanged)
+        self.ln_vMean.textChanged.connect(self.stateChanged)
+        self.ln_countNoneZero.textChanged.connect(self.stateChanged)
+        self.ln_remove.textChanged.connect(self.stateChanged)
+
+        grid = QGridLayout()
+        grid.addWidget(self.ch_mean,0,0)
+        grid.addWidget(QLabel("value"),0,1)
+        grid.addWidget(self.ln_vMean,0,2)
+        grid.addWidget(QLabel("threshold"),1,1)
+        grid.addWidget(self.ln_mean,1,2)
+        grid.addWidget(QLabel("compare"),2,1)
+        grid.addWidget(self.cbb_mean,2,2)
+
+        group1 = QGroupBox("Mean")
+        group1.setLayout(grid)
+
+        grid = QGridLayout()
+        grid.addWidget(self.ch_countNoneZero,0,0)
+        grid.addWidget(QLabel("threshold"),0,1)
+        grid.addWidget(self.ln_countNoneZero,0,2)
+        grid.addWidget(QLabel("compare"),1,1)
+        grid.addWidget(self.cbb_countNoneZero,1,2)
+
+        group2 = QGroupBox("CountNoneZero")
+        group2.setLayout(grid)
+
+        grid = QGridLayout()
+        grid.addWidget(self.ch_remove,0,0)
+        grid.addWidget(QLabel("threshold"),0,1)
+        grid.addWidget(self.ln_remove,0,2)
+        grid.addWidget(QLabel("compare"),1,1)
+        grid.addWidget(self.cbb_remove,1,2)
+
+        group3 = QGroupBox("Remove")
+        group3.setLayout(grid)
+
+        layout = QVBoxLayout()
+        addWidgets(layout,[group1,group2,group3])
+        self.setLayout(layout)
+        self.decision = {
+
+        }
+    def setValue(self,decision):
+        state            = decision["Mean"]["state"]
+        threshold        = decision["Mean"]["threshold"]
+        vmean            = decision["Mean"]["value"]
+        i                = decision["Mean"]["compare"]
+        self.ch_mean.setChecked(state)
+        self.ln_vMean.setText(vmean)
+        self.ln_mean.setText(threshold)
+        self.cbb_mean.setCurrentIndex(i)
+        
+        state            = decision["CountNoneZero"]["state"]
+        threshold        = decision["CountNoneZero"]["threshold"]
+        i                = decision["CountNoneZero"]["compare"]
+        self.ch_countNoneZero.setChecked(state)
+        self.ln_countNoneZero.setText(threshold)
+        self.cbb_countNoneZero.setCurrentIndex(i)
+
+        state            = decision["Remove"]["state"]
+        threshold        = decision["Remove"]["threshold"]
+        i                = decision["Remove"]["compare"]
+        self.ch_remove.setChecked(state)
+        self.ln_remove.setText(threshold)
+        self.cbb_remove.setCurrentIndex(i)
+
+        pass
+    def stateChanged(self):
+        isMean          = self.ch_mean.isChecked()
+        isCountNoneZero = self.ch_countNoneZero.isChecked()
+        isRemove        = self.ch_remove.isChecked()
+
+        type_mean       = self.cbb_mean.currentIndex()
+        type_noneZero   = self.cbb_countNoneZero.currentIndex()
+        type_remove     = self.cbb_remove.currentIndex()
+
+        thresh_mean     = self.ln_mean.text()
+        if thresh_mean == "":
+            thresh_mean = "0"
+
+        vmean            = self.ln_vMean.text().split(",")
+        missing          = 3 - len(vmean)
+        if missing > 0:
+            for i in range(missing):
+                vmean+=["0"]
+        elif missing < 0:
+            vmean = vmean[:3]
+        for i in range(len(vmean)):
+            if vmean[i] == "":
+                vmean[i] = "0"
+        
+        vmean           = ",".join(vmean)
+
+        noneZero        = self.ln_countNoneZero.text()
+        if noneZero == "":
+            noneZero = "0"
+        remove          = self.ln_remove.text()
+        if remove == "":
+            remove = "0"
+
+        self.decision["mean"]       = {"state":isMean,"value":vmean,"threshold":thresh_mean,"compare":type_mean}
+        self.decision["noneZero"]   = {"state":isCountNoneZero,"threshold":noneZero,"compare":type_noneZero}
+        self.decision["remove"]     = {"state":isRemove,"threshold":remove,"compare":type_remove}
+
+
+class BoxInrange(QWidget):
+    def __init__(self,parent=None):
+        super(BoxInrange,self).__init__(parent)
+        slider = partial(newSlider,self)
+        self.h = slider((0,255),0,1,self.valueChanged)
+        self.H = slider((0,255),0,1,self.valueChanged)
+        self.s = slider((0,255),0,1,self.valueChanged)
+        self.S = slider((0,255),0,1,self.valueChanged)
+        self.v = slider((0,255),0,1,self.valueChanged)
+        self.V = slider((0,255),0,1,self.valueChanged)
+
+        self.lb_h = QLabel("0",self)
+        self.lb_H = QLabel("0",self)
+        self.lb_s = QLabel("0",self)
+        self.lb_S = QLabel("0",self)
+        self.lb_v = QLabel("0",self)
+        self.lb_V = QLabel("0",self)
+
+        sl      = [self.h,self.H,self.s,self.S,self.v,self.V]
+        value   = [self.lb_h,self.lb_H,self.lb_s,self.lb_S,self.lb_v,self.lb_V]
+        lb      = ["h","H","s","S","v","V"]
+        widgets = []
+        for l,s,v in zip(lb,sl,value):
+            layout = QHBoxLayout()
+            addWidgets(layout,[QLabel(l,self),s,v])
+            widgets.append(layout)
+
+        layout = QVBoxLayout()
+        addWidgets(layout,widgets)
+
+        self.setLayout(layout)
+
+        # 
+        self.range = {"h":(0,0),"s":(0,0),"v":(0,0)}
+
+    def setValue(self,inrange):
+        h,H     = inrange["H"]
+        s,S     = inrange["S"]
+        v,V     = inrange["V"]
+        self.h.setValue(h)
+        self.H.setValue(H)
+        self.s.setValue(s)
+        self.S.setValue(S)
+        self.v.setValue(v)
+        self.V.setValue(V)
+    def valueChanged(self):
+        h,H     = self.h.value(),self.H.value()
+        s,S     = self.s.value(),self.S.value()
+        v,V     = self.v.value(),self.V.value()
+
+        self.lb_h.setText(str(h))
+        self.lb_H.setText(str(H))
+        self.lb_s.setText(str(s))
+        self.lb_S.setText(str(S))
+        self.lb_v.setText(str(v))
+        self.lb_V.setText(str(V))
+
+        self.range["h"] = (h,H)
+        self.range["s"] = (s,S)
+        self.range["v"] = (v,V)
+
 class BoxButtons(QDialog):
     def __init__(self,parent=None):
         super(BoxButtons,self).__init__(parent)
@@ -249,7 +432,7 @@ class BoxCamera(QDialog):
                     showImage(mat,self.frame)
 
                 # emit to run process
-                if self.isOpened() is not None:
+                if self.isOpened():
                     self.signal.emit(self.grab())
 
                 #  emit FPS
@@ -339,21 +522,24 @@ class BoxFontColor(QDialog):
                 "lw"        : self.spin_lw.value(),
                 "fs"        : self.spin_fs.value()}
 
-class Items(object):
+class Params(object):
     def __init__(self,parent):
-        super(Items,self).__init__()
+        super(Params,self).__init__()
         self.parent           = parent
         spin                  = QSpinBox(parent)
         spin2                 = QSpinBox(parent)
         self.crop             = QLineEdit("0,0,0,0",parent)
         self.qrect            = QLineEdit("0,0,0,0",parent)
         self.convert          = newCbb(["bgr2gray","gray2bgr","hsv"])
+
         self.binary_threshold = spin
         self.binary_type      = newCbb(["normal","inv"])
         self.binary_method    = newCbb(["normal","otsu","adaptive"])
         self.binary_blocksize = QLineEdit("11",parent)
+
         self.blur_size        = QLineEdit("3",parent)
         self.blur_method      = newCbb(["blur","median","gauss"])
+
         self.morph_size       = QLineEdit("3",parent)
         self.morph_iter       = QLineEdit("1",parent)
         self.morph_method     = newCbb(["dilate","erode","close","open"
@@ -364,18 +550,22 @@ class Items(object):
         self.remove_width     = QLineEdit("-1,-1",parent)
         self.remove_height    = QLineEdit("-1,-1",parent)
         self.remove_area      = QLineEdit("-1,-1",parent)
+        
         self.orc_oem          = newCbb(["%d"%i for i in range(4)])
         self.orc_oem.setCurrentIndex(1)
         self.orc_psm          = newCbb(["%d"%i for i in range(14)])
         self.orc_psm.setCurrentIndex(3)
         self.orc_lang         = newCbb(["eng","vie","kor"])
+
         self.match_score      = spin2
         self.match_filename   = QLineEdit("",parent)
         self.match_multi      = QCheckBox("",parent)
-        # self.match_filename   = QCommandLinkButton("...",parent)
-        # self.match_filename.clicked.connect(self.brower)
+
         self.camera_type      = newCbb(["webcam","basler"])
         self.camera_id        = QLineEdit("...",parent)
+
+        self.inrange          = BoxInrange(parent)
+        self.decision         = BoxDecision(parent)
 
         spin.setRange(0,255)
         spin.setValue(100)
@@ -421,6 +611,10 @@ class Items(object):
             self.match_score.setValue(int(match["Score"]))
             self.match_filename.setText(match["File"])
             self.match_multi.setChecked(eval(match["Multiple"]))
+            inrange         = cfg["inrange"]
+            self.inrange.setValue(inrange)
+            decision        = cfg["decision"]
+            self.decision.setValue(decision)
         except:
             print("has a problem when set items config")
             pass
@@ -497,6 +691,7 @@ class BoxProcessResult(QDialog):
 
         self.lb_result      = QLabel("Wait",self)
         self.lb_result.setAlignment(Qt.AlignCenter)
+        self.lb_result.setMinimumHeight(300)
 
         self.but_clear      = newButton("Clear",self.clear,"clear")
 
@@ -555,7 +750,7 @@ class BoxParameter(QTreeWidget):
         _translate = QCoreApplication.translate
         self.headerItem().setText(0, _translate("", "Parameter"))
         self.headerItem().setText(1, _translate("", "Value"))
-        lbs = "Camera Crop Convert Binary Blur Morph Contours Remove OCR Matching".split()
+        lbs = "Camera Crop Convert Binary Blur Morph Contours Remove OCR Matching InRange Decision".split()
         child = [
             "Type SN",
             "Box Qrect",
@@ -567,6 +762,8 @@ class BoxParameter(QTreeWidget):
             "Width Height Area",
             "Lang Oem Psm",
             "Score File Multiple",
+            "Range",
+            "Decision"
         ]
         self.lb_item  = lbs
         self.lb_child = child
@@ -577,7 +774,7 @@ class BoxParameter(QTreeWidget):
             for x in chs:
                 self.topLevelItem(i).addChild(QTreeWidgetItem([x]))
             
-        self.items = Items(self)
+        self.items = Params(self)
         addWidget = self.addWidget
 
         addWidget(0,0,self.items.camera_type)
@@ -614,6 +811,9 @@ class BoxParameter(QTreeWidget):
         addWidget(9,0,self.items.match_score)
         addWidget(9,1,self.items.match_filename)
         addWidget(9,2,self.items.match_multi)
+
+        addWidget(10,0,self.items.inrange)
+        addWidget(11,0,self.items.decision)
 
     def addWidget(self,idIt,idChild,widget):
         if idChild is not None:
@@ -923,6 +1123,16 @@ class BoxTeaching(QDialog):
             "File"     : item.match_filename.text(),
             "Multiple" : str(item.match_multi.isChecked())
         }
+        config["inrange"] = {
+            "H"    : item.inrange.range["h"],
+            "S"    : item.inrange.range["s"],
+            "V"    : item.inrange.range["v"],
+        }
+        config["decision"] = {
+            "Mean"              : item.decision.decision["mean"],
+            "CountNoneZero"     : item.decision.decision["noneZero"],
+            "Remove"            : item.decision.decision["remove"],
+        }
         return config
 
 
@@ -932,9 +1142,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     wd = QMainWindow()
     # box = BoxSelectedFunction(["A","B","C"])
-    box = BoxCamera(0.005,button=False)
-    box.show()
-    # wd.setCentralWidget(box)
-    # wd.show()
+    box = BoxDecision(wd)
+    # box.show()
+    wd.setCentralWidget(box)
+    wd.show()
     # wd.setCentralWidget(canvas)
     sys.exit(app.exec_())

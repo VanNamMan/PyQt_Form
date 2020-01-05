@@ -175,10 +175,10 @@ class MainWindow(QMainWindow):
         item2 = self.canvas.boxTeaching.listShapeTimeInfer.item(i)
         if item1 is not None and status:
             item1.setText("RUNNING")
-            item1.setBackground(Qt.red)
+            item1.setForeground(Qt.red)
         elif item1 is not None:
             item1.setText("FREE")
-            item1.setBackground(Qt.green)
+            item1.setForeground(Qt.green)
             item2.setText("%d ms"%inference_time)
     def run_process(self,mat):
         if mat is None:
@@ -265,7 +265,6 @@ class MainWindow(QMainWindow):
         self.processes = []
         self.camera.visualize     = {"boxs":[],"visualizes":[]}
         if model == "None" or "":
-            
             return
         path                      = "%s/%s/para.config"%(folder,model)
         config                    = ConfigParser()

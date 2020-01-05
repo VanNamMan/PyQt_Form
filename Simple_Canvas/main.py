@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         self.dock_imageResult.setFeatures(dockFeatures)
 
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_proc)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_imageResult)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_imageResult)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_teach)
         
         toggleParaDock                  = self.dock_teach.toggleViewAction()
@@ -167,19 +167,28 @@ class MainWindow(QMainWindow):
         # defautl camera 
         self.camera.openCamera()
     def setShapeStatus(self,i,status,start,stop,inference_time):
+        if status:
+            status = "RUNNING"
+            color = Qt.red
+        else:
+            status = "FREE"
+            color = Qt.green
+        self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
+        self.boxImageResult.boxShapeStatus.item(i,2).setForeground(color)
         # if start :
         #     self.boxProcess.log("%s : Shape-%d process is starting."%(start,i))
         # if stop :
         #     self.boxProcess.log("%s : Shape-%d process is done."%(stop,i))
-        item1 = self.canvas.boxTeaching.listShapeStatus.item(i)
-        item2 = self.canvas.boxTeaching.listShapeTimeInfer.item(i)
-        if item1 is not None and status:
-            item1.setText("RUNNING")
-            item1.setForeground(Qt.red)
-        elif item1 is not None:
-            item1.setText("FREE")
-            item1.setForeground(Qt.green)
-            item2.setText("%d ms"%inference_time)
+        # item1 = self.canvas.boxTeaching.listShapeStatus.item(i)
+        # item2 = self.canvas.boxTeaching.listShapeTimeInfer.item(i)
+        # if item1 is not None and status:
+        #     item1.setText("RUNNING")
+        #     item1.setForeground(Qt.red)
+        # elif item1 is not None:
+        #     item1.setText("FREE")
+        #     item1.setForeground(Qt.green)
+        #     item2.setText("%d ms"%inference_time)
+        pass
     def run_process(self,mat):
         if mat is None:
             return 
@@ -275,6 +284,7 @@ class MainWindow(QMainWindow):
                 # bProc[section]      = False
                 shapeConfig       = configProxy2dict(self.currentModelConfig[section])
                 self.processes.append(Proc(shapeConfig))
+                # self.boxImageResult.boxShapeStatus[i] = [section,"0 ms","FREE"]
                 self.camera.visualize["boxs"].append(None)
                 self.camera.visualize["visualizes"].append(None)
 

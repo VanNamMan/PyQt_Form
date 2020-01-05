@@ -17,6 +17,8 @@ class Font(object):
         self.lw = 2
         self.font = cv2.FONT_HERSHEY_COMPLEX
         self.color = (0,255,0)
+        self.cntColor = (0,255,255)
+        self.pointColor = (0,0,255)
 cvFont = Font()
 
 class Mat(object):
@@ -152,9 +154,9 @@ class Contours(object):
         if pprint:
             print(self)
         if mat is not None:
-            return draw(mat,cnts=self.cnts,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(mat,cnts=self.cnts)
         else:
-            return draw(self.mat,cnts=self.cnts,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(self.mat,cnts=self.cnts)
 
 class Remove(object):
     __checkin__    = list
@@ -164,6 +166,7 @@ class Remove(object):
         self.mat            = None
         self.boxs           = []
         self.cnts           = []
+        self.preds          = []
 
     def __out__(self):
         return self.boxs
@@ -177,13 +180,46 @@ class Remove(object):
             # box,cnt = self[i]
             # text += "\n\t%d : %s , %s"%(i,str(box),str(cnt.shape))
         return "***** %s *****"%text
+    
     def visualize(self,mat=None,pprint=False):
         if pprint:
             print(self)
         if mat is None:
-            return draw(mat=self.mat,boxs=self.boxs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(mat=self.mat,boxs=self.boxs)
         else:
-            return draw(mat=mat,boxs=self.boxs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(mat=mat,boxs=self.boxs)
+class ConvexHull(object):
+    __checkin__    = list
+    __checkout__   = list
+    def __init__(self):
+        self.__name__       = "convexHull"
+        self.mat            = None
+        self.convexs        = []
+        self.points         = []
+        self.distances      = []
+
+    def __out__(self):
+        return self.convexs
+    def __getitem__(self,i):
+        return self.convexs[i],self.points[i],self.distances[i]
+    def __len__(self):
+        return len(self.convexs)
+    def __str__(self):
+        text = self.__name__ + " %d:\n"%len(self)
+        return "***** %s *****"%text
+    def visualize(self,mat=None,pprint=False):
+        if pprint:
+            print(self)
+        
+        if mat is None:
+            mat = self.mat
+
+        mat = drawing(mat,cnts=self.convexs,idx=-1)
+        for points in self.points:
+            radius = len(points)*[5]
+            mat = drawing(mat,points=points,radius=radius)
+        
+        return mat
 
 class OCR(object):
     __checkin__    = np.ndarray
@@ -202,11 +238,9 @@ class OCR(object):
         if pprint:
             print(self)
         if mat is None:
-            return draw(self.mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(self.mat,[self.text])
         else:
-            mat = draw(mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
-            cv2.imwrite("ocr.png",mat)
-            return mat
+            return drawing(mat,[self.text])
 
 class Match(object):
     __checkin__    = np.ndarray
@@ -237,9 +271,29 @@ class Match(object):
         texts = ["%.2f"%s for s in self.scores]
         orgs = [(b[0],b[1]) for b in self.boxs]
         if mat is None:
-            return draw(self.mat,boxs=self.boxs,texts=texts,orgs=orgs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(self.mat,boxs=self.boxs,texts=texts,orgs=orgs)
         else:
-            return draw(mat,boxs=self.boxs,texts=texts,orgs=orgs,fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            return drawing(mat,boxs=self.boxs,texts=texts,orgs=orgs)
+
+class InRange(object):
+    __checkin__    = np.ndarray
+    __checkout__   = np.ndarray
+    def __init__(self):
+        self.__name__       = "inRange"
+        self.mat            = None
+    def __out__(self):
+        return self.mat
+    def __str__(self):
+        text = self.__name__
+        return text
+    def visualize(self,mat=None,pprint=False):
+        if pprint:
+            print(self)
+        if mat is not None:
+            return gray2bgr(mat)
+        else:
+            return gray2bgr(self.mat)
+
 class Predict(object):
     def __init__(self):
         super(Predict,self).__init__()
@@ -255,7 +309,7 @@ class Predict(object):
             print(self)
         h,w                 = self.mat.shape[:2]
         org                 = (w//2,h//2)
-        return draw(self.mat,texts=["%s"%str(self.result)],orgs=[org],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+        return drawing(self.mat,texts=["%s"%str(self.result)],orgs=[org])
 
 def isGray(mat):
     return len(mat.shape) == 2
@@ -403,6 +457,7 @@ def findContours(src:Mat,config)->Contours:
         res.cnts,_    = cv2.findContours(mat,mode,method)
     else:
         _,res.cnts,_    = cv2.findContours(mat,mode,method)
+        # print(res.cnts[0].shape)
     res.mat         = mat
     return res
 
@@ -418,6 +473,17 @@ def removeBlobs(src:Contours,config)->Remove:
     height              = str2ListInt(cfg["Height"])
     area                = str2ListInt(cfg["Area"])
     res                 = Remove()
+    res.mat             = src.mat
+
+    # 
+    # predict_mean                = config["decision"]["Mean"]["state"]
+    # predict_countNoneZero       = config["decision"]["CountNoneZero"]["state"]
+    # predict_remove              = config["decision"]["Remove"]["state"]
+
+    # compare_mean                = 0
+    # compare_countNoneZero       = 0
+    # compare_remove              = 0
+    # 
     for cnt in cnts :
         x,y,w,h         = cv2.boundingRect(cnt)
         s               = cv2.contourArea(cnt)
@@ -426,7 +492,26 @@ def removeBlobs(src:Contours,config)->Remove:
         if not inSide(s,area) : continue
         res.boxs.append([x,y,w,h])
         res.cnts.append(cnt)
-    res.mat             = src.mat
+        # =========predict========
+        # if predict_mean:
+        #     roi             = src.mat[y:y+h,x:x+w]
+        #     compare_type    = config["decision"]["Mean"]["compare"]
+        #     value           = config["decision"]["Mean"]["value"]
+        #     thrteshold      = config["decision"]["Mean"]["thrteshold"]
+        #     m,_             = meanStd(roi)
+        #     compare_mean    = distance(m,value)
+        #     if compare_type:
+        #         if compare_mean <= thrteshold:
+        #             res.preds.append(False)
+        #         else: 
+        #             res.preds.append(True)
+        #     if compare_type:
+        #         if compare_mean <= thrteshold:
+        #             res.preds.append(False)
+        #         else: 
+        #             res.preds.append(True)
+        # =================
+    
     return res
 
 def ocr(src:Mat,config)->OCR:
@@ -500,45 +585,116 @@ def matching(src:Mat,config)->Match:
     res.mat         = mat
     return res
 
-def predict(src,decision):
+def inrange(src,config):
+    """
+    :src : Mat
+    :return mask inRange HSV
+    """
+    mat = src.mat
+    dst = InRange()
+    
+    if isGray(mat):
+        return mat
+    
+    h,H = config["inrange"]["H"]
+    s,S = config["inrange"]["S"]
+    v,V = config["inrange"]["V"]
+
+    hsv = cv2.cvtColor(mat, cv2.COLOR_BGR2HSV)
+    # define range of blue color in HSV
+    lower = np.array([h,s,v])
+    upper = np.array([H,S,V])
+    # Threshold the HSV image to get only colors
+    dst.mat = cv2.inRange(hsv, lower, upper)
+
+    return dst
+
+def convexHull(src:Contours,config):
+    """
+    :src : Contours
+    :return convex of cnt in contours
+    """
+    if isinstance(src,Remove):
+        cnts = src.cnts 
+    else:
+        cnts = src.__out__()
+    dst = ConvexHull()
+    dst.mat = src.mat
+    dst.convexs = []
+    dst.points = []
+    dst.distances = []
+    for i in range(len(cnts)):
+        points = []
+        dis = []
+        hull = cv2.convexHull(cnts[i],returnPoints=False)
+        hull_cnt = []
+        defects = cv2.convexityDefects(cnts[i],hull)
+        for j in range(defects.shape[0]):
+            s,e,f,d = defects[j,0]
+            far = tuple(cnts[i][f][0])
+            dis.append(d)
+            points.append(far)
+        
+
+        hull_cnt = cnts[i][hull[:,0]]
+        argmax = np.argmax(dis)
+        dst.points.append(points)
+        dst.distances.append(dis)
+        dst.convexs.append(hull_cnt)
+
+    return dst
+
+def predict(self,decision,src):
     for key,value in decision.items():
         state           = value["state"]
-        value           = str2ListInt(value["threshold"])
-        mat             = src.mat
-        pred            = True
+        if not state: continue
+        threshold       = float(value["threshold"])
+        type_           = value["compare"] # 0 : less than,1 : more than
+        mat = src.mat
+        if isinstance(src,Remove):
+            pred = [True for b in self.__out__()]
+            objs = [self.mat[y:y+h,x:x+w] for x,y,w,h in src.__out__()]
+            for i,roi in enumerate(objs):            
+                if key == "Mean":
+                    v       = value["value"]
+                    m,_     = meanStd(roi)
+                    compare = distance(m,v)
+                    
+                elif key == "CountNoneZero":
+                    compare = cv2.countNonZero(roi)
+                elif key == "Remove":
+                    compare = len(src)
+                #  decision
+                if type_:
+                    if compare <= threshold:
+                        pred[i] = False
+                else:
+                    if compare >= threshold:
+                        pred[i] = False
+
+        elif isinstance(src,Crop) or isinstance(src,OCR):
+            pred = [True]
+            objs = [src.__out__()]
+
         
-        if key == "Mean":
-            mean,_   = meanStd(mat)
-            dis      = distance(mean,value)
-             
-        elif key == "CountNoneZero":
-            pass
-        elif key == "Remove":
-            pass
-
-
-DEF_FUNCTIONS       = {Crop         : crop ,
-                       Convert      : convert,
-                       Blur         : blur,
-                       Binary       : binary,
-                       Morph        : morph,
-                       Contours     : findContours,
-                       Remove       : removeBlobs,
-                       OCR          : ocr,
-                       Match        : matching}
-
-def draw(
-         mat    = None
-        ,texts=[]
-        ,boxs=[]
-        ,cnts=None
+#  ================
+def draw(font   = cvFont
+        ,mat    = None
+        ,texts  =[]
+        ,boxs   =[]
+        ,cnts   =None
         ,idx    = -1
         ,orgs   = [(20,20)]
-        ,font   = 3
-        ,fs     = 1.0
-        ,lw     = 2.0
-        ,color  = (0,255,0)
+        ,points = []
+        ,radius = []
         ):
+
+    font        = cvFont.font
+    fs          = cvFont.fs
+    lw          = cvFont.lw
+    color       = cvFont.color
+    cntColor    = cvFont.cntColor
+    pColor      = cvFont.pointColor
 
     if isGray(mat):
         mat = cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
@@ -548,8 +704,14 @@ def draw(
         x,y,w,h = box
         cv2.rectangle(mat,(x,y),(x+w,y+h),color,lw)
     if cnts is not None:
-        cv2.drawContours(mat,cnts,idx,color,lw)
+        cv2.drawContours(mat,cnts,idx,cntColor,lw)
+    for p,r in zip(points,radius):
+        cv2.circle(mat,p,r,pColor,thickness=-1)
     return mat
+
+# 
+drawing = partial(draw,cvFont)
+# 
 
 def sort_matching(boxs,scores,epsilon=10):
     """
@@ -618,6 +780,21 @@ def checkin(funcs,mat):
     msg = "all functions macthing complete"
     return True,msg
 
+
+# =========deffine functions==============
+DEF_FUNCTIONS       = {Crop         : crop ,
+                       Convert      : convert,
+                       Blur         : blur,
+                       Binary       : binary,
+                       Morph        : morph,
+                       Contours     : findContours,
+                       Remove       : removeBlobs,
+                       OCR          : ocr,
+                       Match        : matching,
+                       InRange      : inrange,
+                       ConvexHull   : convexHull}
+# =====================================
+
 def test_process(mat,config,bTeaching=True,pprint=True
                 ,color=(0,255,0)):
     # ======================
@@ -655,7 +832,7 @@ def test_process(mat,config,bTeaching=True,pprint=True
 if __name__ == "__main__":
     # from collections import Counter
 
-    mat = cv2.imread("demo/1.jpg")
+   
     
     # _,mat = cv2.threshold(mat,150,255,0)
 
@@ -666,18 +843,14 @@ if __name__ == "__main__":
     config.read("Model/WebCam-0/para.config")
     config      = config["shape-0"]
     config      = configProxy2dict(config)
-    print(type(config["decision"]["Mean"]["state"]))
+   
+    mat = cv2.imread("grab/050120_015603.png")
+    dst = Mat(mat)
+    funcs       = ["Crop","Convert","Binary","Contours","Remove","ConvexHull"]
+    for f in funcs:
+        dst = DEF_FUNCTIONS[eval(f)](dst,config)
+    out = dst.visualize(mat=None,pprint=True)
 
-    # m = Mat(mat)
-    # print(crop.__doc__)
-    # funcs       = ["Crop","Binary","Morph","Remove"]
-
-    # ret,msg = checkin(funcs,mat)
-    # print(ret,",",msg)
-
-    # for f in funcs:
-    #     dst = DEF_FUNCTIONS[eval(f)](dst,config)
-    # print(dst.mat.shape)
     # print(DEF_FUNCTIONS)
     # try :
     # print(eval("Crop"))
@@ -699,6 +872,6 @@ if __name__ == "__main__":
     # print("time inference : %d"%(dt))
     # wd          = cv2.namedWindow("",cv2.WINDOW_FREERATIO)
     # # for v in vis:
-    # cv2.imshow("",dst.mat)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    cv2.imshow("",out)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

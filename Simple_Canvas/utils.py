@@ -153,25 +153,6 @@ def newAction(parent,text,slot=None,shortcut=None,icon=None,tooltip=None,enabled
     a.setEnabled(enabled)
     return a
 
-def draw(mat,text=None,box=None,cnts=None
-            ,idx    = -1
-            ,org    = (20,20)
-            ,font   = 0
-            ,fs     = 1.0
-            ,lw     = 2
-            ,c      = (0,255,0)):
-    if isGray(mat):
-        mat = cv2.cvtColor(mat,cv2.COLOR_GRAY2BGR)
-    if text is not None:
-        cv2.putText(mat,text,org,font,fs,c,lw)
-    if box is not None:
-        pt1 = tuple(box[:2])
-        pt2 = (box[0]+box[2],box[1]+box[3])
-        cv2.rectangle(mat,pt1,pt2,c,lw)
-    if cnts is not None:
-        cv2.drawContours(mat,cnts,idx,c,lw)
-    return mat
-
 def mkdir(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)

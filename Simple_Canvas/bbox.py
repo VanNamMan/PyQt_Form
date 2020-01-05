@@ -40,8 +40,10 @@ class BoxImageResult(QDialog):
         super(BoxImageResult,self).__init__(parent)
         layout          = QVBoxLayout()
         self.frame      = QLabel(self)
+        self.boxShapeStatus = BoxTableWidget(["Shape","Inference time","Status"],self)
+        self.boxShapeStatus.setMaximumHeight(300)
         self.frame.setAlignment(Qt.AlignCenter)
-        addWidgets(layout,[self.frame])
+        addWidgets(layout,[self.frame,self.boxShapeStatus])
         self.setLayout(layout)
 
 class BoxDecision(QWidget):
@@ -100,9 +102,9 @@ class BoxDecision(QWidget):
         layout = QVBoxLayout()
         addWidgets(layout,[group1,group2,group3])
         self.setLayout(layout)
-        self.decision = {
-
-        }
+        self.decision = {'Mean': {'state': True, 'value': '0,0,0', 'threshold': '50', 'compare': 0}, 
+                        'CountNoneZero': {'state': True, 'threshold': '100', 'compare': 1},
+                        'Remove': {'state': True, 'threshold': '0', 'compare': 1}}
     def setValue(self,decision):
         state            = decision["Mean"]["state"]
         threshold        = decision["Mean"]["threshold"]
@@ -161,12 +163,13 @@ class BoxDecision(QWidget):
         if remove == "":
             remove = "0"
 
-        self.decision["mean"]       = {"state":isMean,"value":vmean,"threshold":thresh_mean,"compare":type_mean}
-        self.decision["noneZero"]   = {"state":isCountNoneZero,"threshold":noneZero,"compare":type_noneZero}
-        self.decision["remove"]     = {"state":isRemove,"threshold":remove,"compare":type_remove}
+        self.decision["Mean"]       = {"state":isMean,"value":vmean,"threshold":thresh_mean,"compare":type_mean}
+        self.decision["CountNoneZero"]   = {"state":isCountNoneZero,"threshold":noneZero,"compare":type_noneZero}
+        self.decision["Remove"]     = {"state":isRemove,"threshold":remove,"compare":type_remove}
 
 
 class BoxInrange(QWidget):
+    inRangeSignal = pyqtSignal(dict)
     def __init__(self,parent=None):
         super(BoxInrange,self).__init__(parent)
         slider = partial(newSlider,self)
@@ -199,7 +202,7 @@ class BoxInrange(QWidget):
         self.setLayout(layout)
 
         # 
-        self.range = {"h":(0,0),"s":(0,0),"v":(0,0)}
+        self.range = {"H":(0,0),"S":(0,0),"V":(0,0)}
 
     def setValue(self,inrange):
         h,H     = inrange["H"]
@@ -223,9 +226,11 @@ class BoxInrange(QWidget):
         self.lb_v.setText(str(v))
         self.lb_V.setText(str(V))
 
-        self.range["h"] = (h,H)
-        self.range["s"] = (s,S)
-        self.range["v"] = (v,V)
+        self.range["H"] = (h,H)
+        self.range["S"] = (s,S)
+        self.range["V"] = (v,V)
+
+        self.inRangeSignal.emit(self.range)
 
 class BoxButtons(QDialog):
     def __init__(self,parent=None):
@@ -255,6 +260,7 @@ class BoxButtons(QDialog):
             window.stacker.setCurrentWidget(window.manual)
         elif self.sender() == self.but_teach:
             window.stacker.setCurrentWidget(window.canvas)
+            window.actions.open_.setEnabled(True)
         elif self.sender() == self.but_data:
             window.stacker.setCurrentWidget(window.data)
         pass
@@ -337,7 +343,7 @@ class BoxCamera(QDialog):
                 if self.cap is not None:
                     self.cap.release()
                 self.cap = cv2.VideoCapture(id_camera)
-                if self.cap.isOpened():
+                if self.isOpened():
                     self.window().boxProcess.log("Camera %d is opened"%id_camera)
                 else:
                     self.window().boxProcess.log("Camera %d failed"%id_camera)
@@ -351,6 +357,9 @@ class BoxCamera(QDialog):
         elif self.but_connect.text() == "Close":
             if camera == self.WEBCAM:
                 self.cap.release()
+                if not self.isOpened():
+                    id_camera = int(id_camera)
+                    self.window().boxProcess.log("Camera %d is closed"%id_camera)
             elif camera == self.BASLER:
                 pass
             self.but_connect.setText("Open")
@@ -399,6 +408,8 @@ class BoxCamera(QDialog):
             self.but_connect.setEnabled(True)
             self.window().boxProcess.log("stop")
             self.window().boxTeaching.setEnabled(True)
+            # for i in range (len(self.window().processes)):
+            #     self.window().processes[i].busy = False
         pass
     def reset(self):
         pass
@@ -422,6 +433,7 @@ class BoxCamera(QDialog):
                 boxs         = self.visualize["boxs"]
                 visualizes   = self.visualize["visualizes"]
                 copy         = mat.copy()
+                self.signal.emit(mat)
                 if visualizes:
                     for box,vis in zip(boxs,visualizes):
                         if box is not None:
@@ -432,8 +444,9 @@ class BoxCamera(QDialog):
                     showImage(mat,self.frame)
 
                 # emit to run process
-                if self.isOpened():
-                    self.signal.emit(self.grab())
+                # if self.isOpened():
+                #     mat_emit = self.grab()
+                #     if mmat is not None:
 
                 #  emit FPS
                 fps+=1
@@ -657,6 +670,7 @@ class BoxTableWidget(QTableWidget):
         for i in range(self.columnCount()):
             texts.append(self.item(key,i).text())
         return texts
+
 
 
 class BoxProcessResult(QDialog):
@@ -957,8 +971,6 @@ class BoxTeaching(QDialog):
         self.model_folder           = model_folder
         self.boxModel               = BoxModel(model_folder)
         self.listShape              = QListWidget(self)
-        self.listShapeStatus        = QListWidget(self)
-        self.listShapeTimeInfer     = QListWidget(self)
         self.boxFunction            = BoxFunction(funcs)
         self.boxSelectedFunction    = BoxSelectedFunction()
         self.boxParameter           = BoxParameter()
@@ -971,15 +983,13 @@ class BoxTeaching(QDialog):
         self.listShape.itemClicked.connect(self.itemClicked)
         self.autotest.stateChanged.connect(self.stateChanged)
 
+        self.boxParameter.items.inrange.inRangeSignal.connect(self.inRange)
+
         tab1                        = QWidget()
         layout1                     = QVBoxLayout()
-        sub_layout                  = QHBoxLayout()
-        self.listShapeStatus.setMaximumWidth(50)
-        self.listShapeTimeInfer.setMaximumWidth(50)
-        addWidgets(sub_layout,[self.listShape,self.listShapeStatus,self.listShapeTimeInfer])
         widgets1 = [
             self.boxModel,
-            sub_layout,
+            self.listShape,
             QLabel("select functions"),
             self.boxFunction,
             QLabel("processing"),
@@ -1026,6 +1036,15 @@ class BoxTeaching(QDialog):
     
     def apply(self):
         self.window().apply()
+    def inRange(self,range_):
+        window = self.window()
+        h,H = range_["H"]
+        s,S = range_["S"]
+        v,V = range_["V"]
+        if self.autotest.isChecked():
+            idx = window.canvas.shapes.index(window.canvas.shapeSelected)
+            window.canvas.testActionSignal.emit(window.canvas.shapes[idx])
+
     def stateChanged(self,state):
         shapes = self.window().canvas.shapes
         labels = [shape.label for shape in shapes] + ["None"]
@@ -1124,14 +1143,14 @@ class BoxTeaching(QDialog):
             "Multiple" : str(item.match_multi.isChecked())
         }
         config["inrange"] = {
-            "H"    : item.inrange.range["h"],
-            "S"    : item.inrange.range["s"],
-            "V"    : item.inrange.range["v"],
+            "H"    : item.inrange.range["H"],
+            "S"    : item.inrange.range["S"],
+            "V"    : item.inrange.range["V"],
         }
         config["decision"] = {
-            "Mean"              : item.decision.decision["mean"],
-            "CountNoneZero"     : item.decision.decision["noneZero"],
-            "Remove"            : item.decision.decision["remove"],
+            "Mean"              : item.decision.decision["Mean"],
+            "CountNoneZero"     : item.decision.decision["CountNoneZero"],
+            "Remove"            : item.decision.decision["Remove"],
         }
         return config
 

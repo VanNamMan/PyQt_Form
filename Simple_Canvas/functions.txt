@@ -7,3 +7,5 @@ Contours
 Remove
 Match
 OCR
+InRange
+ConvexHull

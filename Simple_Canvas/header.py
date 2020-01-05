@@ -18,3 +18,7 @@ import shlex
 from scipy import misc
 from PIL import ImageQt
 
+# tesseract
+# tessdata_dir_config = r'--tessdata-dir "C:\\Program Files (x86)\\Tesseract-OCR\\tessdata"'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files (x86)\\Tesseract-OCR'
+

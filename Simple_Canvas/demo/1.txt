@@ -1,7 +1,0 @@
-CAMERA NOT
-AVAILABLE
-
-We detect your camera is either disconnected or being used by another
-application, try closing any other application(s) that might be using your
-camera and then restart Logitech Capture.
-

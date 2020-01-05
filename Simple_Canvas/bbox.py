@@ -225,7 +225,9 @@ class Items(object):
         self.remove_height    = QLineEdit("-1,-1",parent)
         self.remove_area      = QLineEdit("-1,-1",parent)
         self.orc_oem          = newCbb(["%d"%i for i in range(4)])
+        self.orc_oem.setCurrentIndex(1)
         self.orc_psm          = newCbb(["%d"%i for i in range(14)])
+        self.orc_psm.setCurrentIndex(3)
         self.orc_lang         = newCbb(["eng","vie","kor"])
         self.match_score      = spin2
         self.match_filename   = QLineEdit("",parent)

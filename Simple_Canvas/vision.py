@@ -30,9 +30,10 @@ class Mat(object):
     def __str__(self):
         text = self.__name__ + " : " + str(self.mat.shape)
         return "***** %s *****"%text
-    def visualize(self,pprint=False):
+    def visualize(self,pprint=False,log=True):
         if pprint:
             print(self)
+        # if log
         return gray2bgr(self.mat)
 
 class Crop(object):
@@ -144,8 +145,8 @@ class Contours(object):
         return len(self.cnts)
     def __str__(self):
         text = self.__name__ + " : %d"%len(self)
-        for i in range(len(self)):
-            text += "\n\t%d : %s"%(i,str(self[i].shape))
+        # for i in range(len(self)):
+        #     text += "\n\t%d : %s"%(i,str(self[i].shape))
         return "***** %s *****"%text
     def visualize(self,mat=None,pprint=False):
         if pprint:
@@ -172,9 +173,9 @@ class Remove(object):
         return len(self.boxs)
     def __str__(self):
         text = self.__name__ + " : %d"%len(self)
-        for i in range(len(self)):
-            box,cnt = self[i]
-            text += "\n\t%d : %s , %s"%(i,str(box),str(cnt.shape))
+        # for i in range(len(self)):
+            # box,cnt = self[i]
+            # text += "\n\t%d : %s , %s"%(i,str(box),str(cnt.shape))
         return "***** %s *****"%text
     def visualize(self,mat=None,pprint=False):
         if pprint:
@@ -203,7 +204,9 @@ class OCR(object):
         if mat is None:
             return draw(self.mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
         else:
-            return draw(mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            mat = draw(mat,[self.text],fs=cvFont.fs,lw=cvFont.lw,color=cvFont.color)
+            cv2.imwrite("ocr.png",mat)
+            return mat
 
 class Match(object):
     __checkin__    = np.ndarray
@@ -396,8 +399,10 @@ def findContours(src:Mat,config)->Contours:
         method      = cv2.CHAIN_APPROX_SIMPLE
     elif method     == "none":
         method      = cv2.CHAIN_APPROX_NONE
-
-    _,res.cnts,_    = cv2.findContours(mat,mode,method)
+    if cv2.__version__ > "3":
+        res.cnts,_    = cv2.findContours(mat,mode,method)
+    else:
+        _,res.cnts,_    = cv2.findContours(mat,mode,method)
     res.mat         = mat
     return res
 
@@ -417,7 +422,7 @@ def removeBlobs(src:Contours,config)->Remove:
         x,y,w,h         = cv2.boundingRect(cnt)
         s               = cv2.contourArea(cnt)
         if not inSide(w,width) : continue
-        if not inSide(h,width) : continue
+        if not inSide(h,height) : continue
         if not inSide(s,area) : continue
         res.boxs.append([x,y,w,h])
         res.cnts.append(cnt)
@@ -496,11 +501,6 @@ def matching(src:Mat,config)->Match:
 def predict(src,config):
     mat         = src.mat
 
-DEF_FONT    = cv2.FONT_HERSHEY_COMPLEX      
-DEF_POS     = [(50,100)]
-DEF_COLOR   = (0,255,0)
-DEF_LW      = 2
-DEF_FS      = 2
 
 DEF_FUNCTIONS       = {Crop         : crop ,
                        Convert      : convert,
@@ -518,11 +518,11 @@ def draw(
         ,boxs=[]
         ,cnts=None
         ,idx    = -1
-        ,orgs   = DEF_POS
-        ,font   = cvFont.font
-        ,fs     = DEF_FS
-        ,lw     = DEF_LW
-        ,color  = DEF_COLOR
+        ,orgs   = [(20,20)]
+        ,font   = 3
+        ,fs     = 1.0
+        ,lw     = 2.0
+        ,color  = (0,255,0)
         ):
 
     if isGray(mat):
@@ -535,41 +535,6 @@ def draw(
     if cnts is not None:
         cv2.drawContours(mat,cnts,idx,color,lw)
     return mat
-
-def test_process(mat,config
-                ,color=(0,255,0)):
-    # ======================
-    dst         = Mat(mat)
-    lb_funcs    = config["function"]["Functions"].split(",")
-    keys        = list(DEF_FUNCTIONS.keys())
-    results     = []
-    visualizes  = []
-    # ======================
-    start = time.time()
-    for i,lb in enumerate(lb_funcs):
-        if lb and eval(lb) not in keys:
-            print("Dont suport \"%s\" funtion"%lb)
-        else:
-            # try:
-                t0 = time.time()
-                dst           = DEF_FUNCTIONS[eval(lb)](dst,config)
-                dt            = (time.time()-t0)*1000
-                print("%s : %d ms"%(lb,dt))
-                results.append(dst)
-                visualizes.append(dst.visualize(mat=results[0].mat,pprint=True))
-            # except:
-                print("has a problem at %s"%lb)
-    end = time.time()
-    dt = (end-start)*1000
-    print("time inferenc : %d ms"%(dt))
-    # ======================     
-    return results,visualizes
-
-def configProxy2dict(config):
-    dict_ = {}
-    for key in config.keys():
-        dict_[key] = eval(config[key])
-    return dict_
 
 def sort_matching(boxs,scores,epsilon=10):
     """
@@ -634,35 +599,39 @@ def checkin(funcs,mat):
         return False,msg
     msg = "all functions macthing complete"
     return True,msg
-        
-class Timer(object):
-    __checkin__ = float
-    def __init__(self):
-        super(Timer,self).__init__()
-        self.t0 = time.time()
-    
-    def start(self):
-        self.t0 = time.time()
-    
-    def dt(self):
-        return time.time() - self.t0
-    
-    def MoreThan(self,dt):
-        return True if self.dt() > dt else False
-    def LessThan(self,dt):
-        return True if self.dt() < dt else False
 
+def test_process(mat,config,bTeaching=True,pprint=True
+                ,color=(0,255,0)):
+    # ======================
+    dst         = Mat(mat)
+    lb_funcs    = config["function"]["Functions"].split(",")
+    keys        = list(DEF_FUNCTIONS.keys())
+    results     = []
+    visualizes  = []
+    # ======================
+    start = time.time()
+    for i,lb in enumerate(lb_funcs):
+        if lb and eval(lb) not in keys:
+            print("Dont suport \"%s\" funtion"%lb)
+        else:
+            try:
+                t0 = time.time()
+                dst           = DEF_FUNCTIONS[eval(lb)](dst,config)
+                dt            = (time.time()-t0)*1000
+                print("%s : %d ms"%(lb,dt))
+                results.append(dst)
+                if not bTeaching:
+                    visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint))
+                else:
+                    visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint))
+            except:
+                print("has a problem at %s"%lb)
+    end = time.time()
+    dt = (end-start)*1000
+    print("time inferenc : %d ms"%(dt))
+    # ======================     
+    return results,visualizes
 
-def pick(l, index):
-    """
-    :param l: list of integers
-    :type l: list
-    :param index: index at which to pick an integer from *l*
-    :type index: int
-    :returns: integer at *index* in *l*
-    :rtype: int
-    """
-    return l[index]
 
 if __name__ == "__main__":
     # from collections import Counter

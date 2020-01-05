@@ -3,6 +3,7 @@ from header import *
 def ocr_(mat,cfg):
     txt = pytesseract.image_to_string(mat,config=cfg)
     return txt
+
 def ocr_cmd(filename):
     base,_ = os.path.splitext(filename)
     cmd = "tesseract %s %s -l eng"%(filename,base)
@@ -181,6 +182,29 @@ def ndarray2pixmap(arr):
         pixmap = QPixmap.fromImage(array2qimage(rgb))
     return pixmap
 
+def configProxy2dict(config):
+    dict_ = {}
+    for key in config.keys():
+        dict_[key] = eval(config[key])
+    return dict_
+
+class Timer(object):
+    __checkin__ = float
+    def __init__(self):
+        super(Timer,self).__init__()
+        self.t0 = time.time()
+    
+    def start(self):
+        self.t0 = time.time()
+    
+    def dt(self):
+        return time.time() - self.t0
+    
+    def MoreThan(self,dt):
+        return True if self.dt() > dt else False
+    def LessThan(self,dt):
+        return True if self.dt() < dt else False
+
 def showImage(image,label):
     width , height = label.width(),label.height()
 
@@ -209,13 +233,17 @@ def showImage(image,label):
     return s
 
 if __name__ == "__main__":
+
     # txts = readline("default_function.txt")
     # print(txts)
     # config = ConfigParser()
     # config.read("demo/para.config")
     # camera = eval(config["Config"]["Camera"])
-    mat = cv2.imread("demo/1.jpg")
-    pixmap = ndarray2pixmap(mat)
+    mat = cv2.imread("demo/logitech.jpg")
+    # from PIL import Image
+    text = ocr_(mat,cfg="-l eng")
+    print(text)
+
 
     
     

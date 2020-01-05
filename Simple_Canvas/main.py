@@ -7,6 +7,18 @@ import resources
 
 print("System : ",os.name)
 
+class Proc(object):
+    def __init__(self,config):
+        # 
+        self.busy = False
+        self.config = config
+        #  result
+        self.box  = []
+        self.visualize = []
+    
+    def isDone(self):
+        return not self.busy
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow,self).__init__()
@@ -53,7 +65,8 @@ class MainWindow(QMainWindow):
         toggleLogDock  = self.dock_proc.toggleViewAction()
         
         self.camera               = BoxCamera(0,0.005,self)
-        self.camera.signal.connect(self.process)
+        #  connect mat from camera to image process
+        self.camera.signal.connect(self.run_process)
         # self.boxProcessLog      = BoxProcessLog(self)
         self.frame              = QLabel()
 
@@ -62,7 +75,7 @@ class MainWindow(QMainWindow):
 
         self.canvas = Canvas(self)
         self.canvas.mouseMoveSignal.connect(self.mouseMove)
-        self.canvas.testActionSignal.connect(self.predict)
+        self.canvas.testActionSignal.connect(self.predict_teaching)
         self.canvas.cropActionSignal.connect(self.cropImage)
 
         self.stacker = QStackedWidget(self)
@@ -109,57 +122,82 @@ class MainWindow(QMainWindow):
         addActions(edit,[font,editing,self.canvas.actions.test
                 ,self.canvas.actions.testAll,self.canvas.actions.delete])
 
-        # loop camera
-        # 
-    def process(self,mat):
+        # init variable , loop camera
+        self.OnInit() 
+        # self.box_process = []
+        # self.visualize_process = []
+        #
+
+    def OnInit(self):
+        self.processes = [] # control process for each shape
+    #     self.resetBoxAndVisual() # reset all shape result
+    #     pass 
+    # def resetBoxAndVisual(self):
+    #     self.box_process = []
+    #     self.visualize_process = []
+        
+
+    def run_process(self,mat):
         if mat is None:
             return 
-        boxs = []
-        visualizes  = []
+        #  reset box before run image process
+        # self.resetBoxAndVisual()
         self.camera.visualize = {"boxs":None,"visualizes":None}
         config = self.currentModelConfig
-        if config is None:
-            return
-        for section in self.currentModelConfig.sections():
-            if "shape" in section:
-                config              = configProxy2dict(self.currentModelConfig[section])
-                results,vis  = self.predict(config,mat,False)
-                if results:
-                    boxs.append(results[0].roi)
-                    visualizes.append(vis[-1])
-        self.camera.visualize = {"boxs":boxs,"visualizes":visualizes}
+        # self.bProc = []
+
+        def shapeProc(i,proc):
+            print("\n%s : Shape-%d process is starting."%(getStrTime(),i))
+            proc.busy = True
+            results,vis  = self.predict(proc.config,mat,pprint=True)
+            proc.box = results[0].roi
+            proc.visualize = (vis[-1])
+            proc.busy = False
+            print("\n%s : Shape-%d process is done."%(getStrTime(),i))
+            # self.camera.visualize = {"boxs":self.box_process,"visualizes":self.visualize_process}
+            pass
+        # 
+        # if config is None:
+        #     return
+        for i,proc in enumerate(self.processes):
+            if proc.isDone():
+                runThread(shapeProc,args=(i,proc))
+                pass
+
+        #         runThread(shapeProc,args=(config,))
+    
+                # results,vis  = self.predict(config,mat,False)
+                # if results:
+                #     boxs.append(results[0].roi)
+                #     visualizes.append(vis[-1])
+            
         pass
     def apply(self):
+        if self.canvas.shapeSelected is None:
+            return
         shape                               = self.canvas.shapeSelected
         index                               = self.canvas.shapes.index(shape)
         self.canvas.shapes[index].config    = self.boxTeaching.getConfig()
         self.canvas.shapeSelected.config    = self.boxTeaching.getConfig()
         pass
-    def predict(self,shape,mat=None,teaching=True):
+    def predict_teaching(self,shape):
         if shape is None:
             return
-        if teaching:
-            config  = self.boxTeaching.getConfig()
-        elif isinstance(shape,Shape):
-            config  = shape.config
-            for i in range(len(self.canvas.shapes)):
-                self.canvas.shapes[i].result["pixmap"]  = None
-                self.canvas.shapes[i].result["text"]    = None
-        else:
-            config  = shape
+        config  = self.boxTeaching.getConfig()
+        for i in range(len(self.canvas.shapes)):
+            self.canvas.shapes[i].result["pixmap"]  = None
+            self.canvas.shapes[i].result["text"]    = None
 
-        # t0 = time.time()
-        if mat is None:
-            mat = self.canvas.mat
-
-        resutls,visualizes  = test_process(mat,config)
-
-        if isinstance(shape,Shape):
-            index                                      = self.canvas.shapes.index(shape)
-            x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
-            pixmap                                     = ndarray2pixmap(visualizes[-1])
-            self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
-
+        resutls,visualizes  = test_process(self.canvas.mat,config,bTeaching=True)
+        index                                      = self.canvas.shapes.index(shape)
+        x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
+        pixmap                                     = ndarray2pixmap(visualizes[-1])
+        self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
+        pass
+    def predict(self,config=None,mat=None,pprint=True):
+        if config is None or mat is None:
+            return
+        resutls,visualizes  = test_process(mat,config,bTeaching=False,pprint=pprint)
         return resutls,visualizes
 
     def autoPredict(self):
@@ -215,6 +253,12 @@ class MainWindow(QMainWindow):
         config                    = ConfigParser()
         config.read(path)
         self.currentModelConfig   = config
+        for i,section in enumerate(self.currentModelConfig.sections()):
+            if "shape" in section:
+                # bProc[section]      = False
+                shapeConfig       = configProxy2dict(self.currentModelConfig[section])
+                self.processes.append(Proc(shapeConfig))
+
         if self.stacker.currentWidget() != self.canvas:
             return
         sections                  = list(config.sections())

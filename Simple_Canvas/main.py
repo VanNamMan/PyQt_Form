@@ -215,8 +215,11 @@ class MainWindow(QMainWindow):
                 break
         if self.result.res :
             self.result.n_ok += 1
+            self.result.n_ok = max(self.result.n_ok,1000000)
         else:
             self.result.n_ng += 1
+            self.result.n_ng = max(self.result.n_ng,1000000)
+
         self.result.n_total = self.result.n_ok + self.result.n_ng
 
         return True

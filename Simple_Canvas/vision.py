@@ -23,7 +23,9 @@ class Font(object):
         self.fs = 2.0
         self.lw = 2
         self.font = cv2.FONT_HERSHEY_COMPLEX
-        self.color = (0,255,0)
+        self.color = (255,0,0)
+        self.NG_Color = (0,0,255)
+        self.OK_Color = (0,255,0)
         self.cntColor = (0,255,255)
         self.pointColor = (0,0,255)
 cvFont = Font()
@@ -39,7 +41,7 @@ class Mat(object):
     def __str__(self):
         text = self.__name__ + " : " + str(self.mat.shape)
         return "***** %s *****"%text
-    def visualize(self,pprint=False,log=True):
+    def visualize(self,pprint=False,log=True,res=None):
         if pprint:
             print(self)
         # if log
@@ -57,7 +59,7 @@ class Crop(object):
     def __str__(self):
         text = self.__name__ + " : " + str(self.roi)
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -76,7 +78,7 @@ class Convert(object):
     def __str__(self):
         text = self.__name__ 
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -95,7 +97,7 @@ class Binary(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,mat,pprint=False):
+    def visualize(self,mat,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -113,7 +115,7 @@ class Blur(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -132,7 +134,7 @@ class Morph(object):
     def __str__(self):
         text = self.__name__
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -157,7 +159,7 @@ class Contours(object):
         # for i in range(len(self)):
         #     text += "\n\t%d : %s"%(i,str(self[i].shape))
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -188,13 +190,13 @@ class Remove(object):
             # text += "\n\t%d : %s , %s"%(i,str(box),str(cnt.shape))
         return "***** %s *****"%text
     
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is None:
-            return drawing(mat=self.mat,boxs=self.boxs)
+            return drawing(mat=self.mat,boxs=self.boxs,res=res)
         else:
-            return drawing(mat=mat,boxs=self.boxs)
+            return drawing(mat,boxs=self.boxs,res=res)
 class ConvexHull(object):
     __checkin__    = list
     __checkout__   = list
@@ -214,7 +216,7 @@ class ConvexHull(object):
     def __str__(self):
         text = self.__name__ + " %d:\n"%len(self)
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         
@@ -241,7 +243,7 @@ class OCR(object):
     def __str__(self):
         text = self.__name__ + " :\n" + self.text
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is None:
@@ -272,7 +274,7 @@ class Match(object):
         #     string = "\n\t%d : %s box %s ,score %.2f"%(i,str(box),score)
         #     text += string
         return "***** %s *****"%text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         texts = ["%.2f"%s for s in self.scores]
@@ -293,7 +295,7 @@ class InRange(object):
     def __str__(self):
         text = self.__name__
         return text
-    def visualize(self,mat=None,pprint=False):
+    def visualize(self,mat=None,pprint=False,res=None):
         if pprint:
             print(self)
         if mat is not None:
@@ -618,7 +620,7 @@ def inrange(src,config):
 
 def convexHull(src:Contours,config):
     """
-    :src : Contours
+    :src : Contours or Remove
     :return convex of cnt in contours
     """
     if isinstance(src,Remove):
@@ -661,12 +663,15 @@ def draw(font   = cvFont
         ,orgs   = [(20,20)]
         ,points = []
         ,radius = []
+        ,res    = None
         ):
 
     font        = cvFont.font
     fs          = cvFont.fs
-    lw          = cvFont.lw
+
     color       = cvFont.color
+    lw          = cvFont.lw
+
     cntColor    = cvFont.cntColor
     pColor      = cvFont.pointColor
 
@@ -681,6 +686,13 @@ def draw(font   = cvFont
         cv2.drawContours(mat,cnts,idx,cntColor,lw)
     for p,r in zip(points,radius):
         cv2.circle(mat,p,r,pColor,thickness=-1)
+
+    if res is None:
+        pass
+    elif res:
+        cv2.rectangle(mat,(0,0),tuple(mat.shape[:2][::-1]),cvFont.OK_Color,3*lw)
+    else:
+        cv2.rectangle(mat,(0,0),tuple(mat.shape[:2][::-1]),cvFont.NG_Color,3*lw)
     return mat
 
 # 
@@ -758,60 +770,17 @@ def checkin(funcs,mat):
 _MAT  = [eval(x) for x in ["Crop","Binary","Convert","Blur"]]
 _LIST = [eval(x) for x in ["Remove"]]
 # 
-def decision_meanGray(results,config):
-    """
-    :src : Mat
-    :compare mean value
-    """
-    value     = float(config["compare"]["Mean"]["value"])
-    type_     = int(config["compare"]["Mean"]["type"]) # 0 : less than , 1: more than
-
-    index = int(config["compare"]["Mean"]["index"])
-
-    start   = results[index]
-    end     = results[-1]
-    pred    = True
-
-    if end in SRC_MAT:
-        m,_ = meanStd(start.mat)
-        if type_ == LESS_THAN:return True if m < value else False 
-        elif type_ == MORE_THAN:return True if m > value else False
-        else:return True if m == value else False
-
-    elif end in SRC_LIST:
-        means = []
-        for box in end.__out__():
-            x,y,w,h = box
-            roi = start.mat[y:y+h,x:x+w]
-            m,_ = meanStd(m)
-            means.append(m)
-        
-        if type_ == LESS_THAN:
-            for m in means:
-                # if m > 
-                pass
+def decision_meanGray(results,config=None,threshold=100):
+    boxs = results[-1].__out__()
+    mat  = results[1].mat
+    for x,y,w,h in boxs:
+        roi = mat[y:y+h,x:x+w]
+        m,_ = meanStd(roi)
+    return True
+    
 
 def decision_meanBGR(results,config):
-    """
-    :src : Mat
-    :compare mean value
-    """
-    value     = float(config["compare"]["Mean"]["value"])
-    type_     = int(config["compare"]["Mean"]["type"]) # 0 : less than , 1: more than
-
-    index = int(config["compare"]["Mean"]["index"])
-
-    start   = results[index]
-    end     = results[-1]
-
-    if end in _MAT:
-        m,_ = meanStd(start.mat)
-        # dis = 
-        pass
-    elif end in _LIST:
-        
-            
-        pass
+    pass
     
 
 # =========deffine functions==============
@@ -850,16 +819,29 @@ def test_process(mat,config,bTeaching=True,pprint=True
                 print("%s : %d ms"%(lb,dt))
                 results.append(dst)
                 if not bTeaching:
-                    visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint))
+                    pass
+                    # visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint))
                 else:
-                    visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint))
+                    visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=None))
+                    pass
+    # predict
+    pred = True
+    if len(results[-1].__out__()) > 0:
+        visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=True))
+    else:
+        visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=False))
+        pred = False
+    
+    # 
+
+    # visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=True))
             # except:
             #     print("has a problem at %s"%lb)
     end = time.time()
     dt = (end-start)*1000
     print("time inferenc : %d ms"%(dt))
     # ======================     
-    return results,visualizes
+    return results,visualizes,pred
 
 
 if __name__ == "__main__":

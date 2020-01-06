@@ -1,4 +1,6 @@
-from bbox import*
+# from bbox import*
+from utils import *
+from bbox import BBox
 import resources
 
 DEFAULT_FILL_COLOR = QColor(128, 128, 255, 100)

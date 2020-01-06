@@ -198,19 +198,19 @@ class Timer(object):
         return True if self.dt() < dt else False
 
 def showImage(image,label):
-    width , height = label.width(),label.height()
+    # width , height = label.width(),label.height()
 
-    h,w = image.shape[:2]
+    # h,w = image.shape[:2]
 
-    s = min(width/w,height/h)
+    # s = min(width/w,height/h)
 
-    new_w = int(w*s)
-    new_h = int(h*s)
+    # new_w = int(w*s)
+    # new_h = int(h*s)
 
     # t0 = time.time()
-    new_img = cv2.resize(image,(new_w,new_h))
+    # new_img = cv2.resize(image,(new_w,new_h))
     # print(time.time()-t0)
-    qpix    = ndarray2pixmap(new_img)
+    qpix    = ndarray2pixmap(image)
     # if len(image.shape) == 2:
     #     new_img = cv2.cvtColor(new_img, cv2.COLOR_GRAY2RGB)
     #     qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(new_img)))
@@ -222,7 +222,7 @@ def showImage(image,label):
 
     label.setPixmap(qpix)
 
-    return s
+    return 1
 
 if __name__ == "__main__":
 

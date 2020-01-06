@@ -47,9 +47,12 @@ class BoxImageResult(QDialog):
         self.setLayout(layout)
 
 class BoxDecision(QDialog):
-    def __init__(self,parent=None):
+    def __init__(self,shapes,parent=None):
         super(BoxDecision,self).__init__(parent)
         self.plainText = QPlainTextEdit(self)
+
+        # self.cbb_shapes = newCbb(shapes,self)
+        # self.ch_text    = QCheckBox("Text")
         
         bb = BB(BB.Ok|BB.Cancel)
         bb.rejected.connect(self.reject)
@@ -552,6 +555,12 @@ class BoxFontColor(QDialog):
                 "cvColor"   : self.color.getRgb()[:3][::-1],
                 "lw"        : self.spin_lw.value(),
                 "fs"        : self.spin_fs.value()}
+
+class BoxComPort(QWidget):
+    def __init__(self,parent):
+        super(BoxComPort,self).__init__()
+
+    pass
 
 class Params(object):
     def __init__(self,parent):

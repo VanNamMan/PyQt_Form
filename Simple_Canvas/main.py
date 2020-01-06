@@ -7,6 +7,13 @@ import resources
 
 print("System : ",os.name)
 
+class Result(object):
+    def __init__(self):
+        self.n_ok = 0
+        self.n_ng = 0
+        self.n_total = 0
+        self.res = None
+    
 class Proc(object):
     def __init__(self,config):
         # 
@@ -16,12 +23,13 @@ class Proc(object):
         self.time_inference = 0 # ms
         self.box  = []
         self.visualize = []
-    
+        self.res = None
     def isDone(self):
         return not self.busy
 
 class MainWindow(QMainWindow):
-    shapeStatus = pyqtSignal(int,bool,str,str,int) # idshape,status,start_time,stop_time,inference_time
+    resultSignal = pyqtSignal(Result) # (ok,ng,total) , result
+    shapeStatus  = pyqtSignal(int,bool,str,str,int) # idshape,status,start_time,stop_time,inference_time
     def __init__(self):
         super(MainWindow,self).__init__()
         self.setWindowTitle("Automation 2G - Vision Master")
@@ -66,6 +74,7 @@ class MainWindow(QMainWindow):
         self.dock_imageResult = QDockWidget('ImageResult', self)
         self.dock_imageResult.setWidget(self.boxImageResult)
         self.dock_imageResult.setFeatures(dockFeatures)
+        self.dock_imageResult.hide()
 
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_proc)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_imageResult)
@@ -153,7 +162,8 @@ class MainWindow(QMainWindow):
         #  connect mat from camera to image process
         self.camera.signal.connect(self.run_process)
         # shape status signal
-        self.shapeStatus.connect(self.setShapeStatus)
+        self.shapeStatus.connect(self.showShapeStatus)
+        self.resultSignal.connect(self.showProcessResult)
         # canvas signal
         self.canvas.mouseMoveSignal.connect(self.mouseMove)
         self.canvas.testActionSignal.connect(self.predict_teaching)
@@ -167,43 +177,83 @@ class MainWindow(QMainWindow):
 
     def OnInit(self):
         self.processes = [] # control process for each shape
+        self.result    = Result() #
         # defautl camera 
         self.camera.openCamera()
-    def setShapeStatus(self,i,status,start,stop,inference_time):
-        # if status:
-        #     status = "RUNNING"
-        #     color = Qt.red
-        # else:
-        #     status = "FREE"
-        #     color = Qt.green
-        # self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
+    def showShapeStatus(self,i,status,start,stop,inference_time):
+        if status:
+            status = "RUNNING"
+            color = Qt.red
+        else:
+            status = "FREE"
+            color = Qt.green
+        self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
+        pass
+
+    def showProcessResult(self,result): # Result
+        n_ok = result.n_ok
+        n_ng = result.n_ng
+        n_total = result.n_total
+        nums = (n_ok,n_ng,n_total)
+        self.boxProcess.showResult(nums,result.res)
+
+    def doneProcess(self,processes):
+        for proc in self.processes:
+            if not proc.isDone() :
+                self.result.res = None
+                return False
+
+        for proc in self.processes:
+            if proc.res is None:
+                self.result.res = None
+                return True
+        
+        self.result.res = True
+        for proc in self.processes:
+            if not proc.res:
+                self.result.res = False
+                break
+        if self.result.res :
+            self.result.n_ok += 1
+        else:
+            self.result.n_ng += 1
+        self.result.n_total = self.result.n_ok + self.result.n_ng
+
+        return True
+
+    def shapeProc(self,mat,i,proc):
+        # update process status 
+        self.processes[i].busy = True
+        # start = getStrTime()
+        self.shapeStatus.emit(i,True,"","",self.processes[i].time_inference)
+        t0 = time.time()
+        # image process
+        results,vis,pred = self.predict(self.processes[i].config,mat,pprint=True)
+        # show result 
+        self.processes[i].box = results[0].roi
+        self.processes[i].visualize = (vis[-1])
+        self.processes[i].res = pred
+        
+        # update camera
+        self.camera.visualize["boxs"][i] = self.processes[i].box
+        self.camera.visualize["visualizes"][i] = self.processes[i].visualize
+        # update process status
+        # stop = getStrTime()
+        self.processes[i].time_inference = int((time.time()-t0)*1000)
+        self.processes[i].busy = False
+        self.shapeStatus.emit(i,False,"","",self.processes[i].time_inference)
         pass
     def run_process(self,mat):
         if mat is None:
-            return 
-        def shapeProc(i,proc):
-            # update process status 
-            proc.busy = True
-            start = getStrTime()
-            self.shapeStatus.emit(i,True,start,"",proc.time_inference)
-            t0 = time.time()
-            # image process
-            results,vis  = self.predict(proc.config,mat,pprint=True)
-            # show result 
-            proc.box = results[0].roi
-            proc.visualize = (vis[-1])
-            self.camera.visualize["boxs"][i] = proc.box
-            self.camera.visualize["visualizes"][i] = proc.visualize
-            # update process status
-            stop = getStrTime()
-            proc.time_inference = int((time.time()-t0)*1000)
-            proc.busy = False
-            self.shapeStatus.emit(i,False,"",stop,proc.time_inference)
-            pass
+            return
         # 
-        for i,proc in enumerate(self.processes):
-            if proc.isDone():
-                runThread(shapeProc,args=(i,proc))
+        if self.doneProcess(self.processes):
+            self.resultSignal.emit(self.result)
+            for i,proc in enumerate(self.processes):
+                # if not proc.isDone():continue
+                runThread(self.shapeProc,args=(mat,i,proc))
+        else:
+            self.resultSignal.emit(self.result)
         pass
     def apply(self):
         if self.canvas.shapeSelected is None:
@@ -221,7 +271,7 @@ class MainWindow(QMainWindow):
             self.canvas.shapes[i].result["pixmap"]  = None
             self.canvas.shapes[i].result["text"]    = None
 
-        resutls,visualizes  = test_process(self.canvas.mat,config,bTeaching=True)
+        resutls,visualizes,_  = test_process(self.canvas.mat,config,bTeaching=True)
         index                                      = self.canvas.shapes.index(shape)
         x,y,w,h                                    = str2ListInt(config["crop"]["QRect"])
         pixmap                                     = ndarray2pixmap(visualizes[-1])
@@ -230,8 +280,7 @@ class MainWindow(QMainWindow):
     def predict(self,config=None,mat=None,pprint=True):
         if config is None or mat is None:
             return
-        resutls,visualizes  = test_process(mat,config,bTeaching=False,pprint=pprint)
-        return resutls,visualizes
+        return test_process(mat,config,bTeaching=False,pprint=pprint)
 
     def saveAll(self):
         dialog = BoxPassword(self)

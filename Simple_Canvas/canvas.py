@@ -167,16 +167,16 @@ class Canvas(QWidget):
         action             = partial(newAction,self)
         crop               = action("Crop",self.cropImage,"a","crop",None,False)
         test               = action("Test",self.test,"a","test",None,False)
-        testAll            = action("Test all",self.testAll,"shift+a","testAll",None,False)
+        decision           = action("Decision",self.decision,"shift+a","decision","shift+a",False)
         delete             = action("Delete",self.delete,"delete","delete",None,False)
 
         self.actions       = struct(
             crop        = crop,
             test        = test,
-            testAll     = testAll,
-            delete      = delete
+            delete      = delete,
+            decision    = decision
         )
-        addActions(self.contextMenu,[crop,test,testAll,delete])
+        addActions(self.contextMenu,[crop,test,decision,delete])
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.popUpMenu)
@@ -191,7 +191,7 @@ class Canvas(QWidget):
     def enabled_context(self,enable):
         self.actions.crop.setEnabled(enable)
         self.actions.test.setEnabled(enable)
-        self.actions.testAll.setEnabled(enable)
+        self.actions.decision.setEnabled(enable)
         self.actions.delete.setEnabled(enable)
 
     def reCreateShape(self,idx,tl,br,corner=None):
@@ -336,8 +336,14 @@ class Canvas(QWidget):
     def test(self):
         self.testActionSignal.emit(self.shapeSelected)
         pass
-    def testAll(self):
-        pass
+    def decision(self):
+        try:
+            func = eval(self.window().boxDecision.popUp())
+            func
+        except:
+            print("text no eval")
+            pass
+
     def delete(self):
         if self.shapeSelected is not None:
             index = self.shapes.index(self.shapeSelected)

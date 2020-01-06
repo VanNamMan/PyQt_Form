@@ -10,6 +10,13 @@ from utils import *
 #     "matching"         : matching,            8
 #     "removeBlobs"      : removeBlobs          9
 # }
+LESS_THAN = 0
+MORE_THAN = 1
+AS        = 2
+
+MAT_START = 0
+MAT_END   = -1
+
 
 class Font(object):
     def __init__(self):
@@ -644,39 +651,6 @@ def convexHull(src:Contours,config):
 
     return dst
 
-def predict(self,decision,src):
-    for key,value in decision.items():
-        state           = value["state"]
-        if not state: continue
-        threshold       = float(value["threshold"])
-        type_           = value["compare"] # 0 : less than,1 : more than
-        mat = src.mat
-        if isinstance(src,Remove):
-            pred = [True for b in self.__out__()]
-            objs = [self.mat[y:y+h,x:x+w] for x,y,w,h in src.__out__()]
-            for i,roi in enumerate(objs):            
-                if key == "Mean":
-                    v       = value["value"]
-                    m,_     = meanStd(roi)
-                    compare = distance(m,v)
-                    
-                elif key == "CountNoneZero":
-                    compare = cv2.countNonZero(roi)
-                elif key == "Remove":
-                    compare = len(src)
-                #  decision
-                if type_:
-                    if compare <= threshold:
-                        pred[i] = False
-                else:
-                    if compare >= threshold:
-                        pred[i] = False
-
-        elif isinstance(src,Crop) or isinstance(src,OCR):
-            pred = [True]
-            objs = [src.__out__()]
-
-        
 #  ================
 def draw(font   = cvFont
         ,mat    = None
@@ -780,6 +754,65 @@ def checkin(funcs,mat):
     msg = "all functions macthing complete"
     return True,msg
 
+# 
+_MAT  = [eval(x) for x in ["Crop","Binary","Convert","Blur"]]
+_LIST = [eval(x) for x in ["Remove"]]
+# 
+def decision_meanGray(results,config):
+    """
+    :src : Mat
+    :compare mean value
+    """
+    value     = float(config["compare"]["Mean"]["value"])
+    type_     = int(config["compare"]["Mean"]["type"]) # 0 : less than , 1: more than
+
+    index = int(config["compare"]["Mean"]["index"])
+
+    start   = results[index]
+    end     = results[-1]
+    pred    = True
+
+    if end in SRC_MAT:
+        m,_ = meanStd(start.mat)
+        if type_ == LESS_THAN:return True if m < value else False 
+        elif type_ == MORE_THAN:return True if m > value else False
+        else:return True if m == value else False
+
+    elif end in SRC_LIST:
+        means = []
+        for box in end.__out__():
+            x,y,w,h = box
+            roi = start.mat[y:y+h,x:x+w]
+            m,_ = meanStd(m)
+            means.append(m)
+        
+        if type_ == LESS_THAN:
+            for m in means:
+                # if m > 
+                pass
+
+def decision_meanBGR(results,config):
+    """
+    :src : Mat
+    :compare mean value
+    """
+    value     = float(config["compare"]["Mean"]["value"])
+    type_     = int(config["compare"]["Mean"]["type"]) # 0 : less than , 1: more than
+
+    index = int(config["compare"]["Mean"]["index"])
+
+    start   = results[index]
+    end     = results[-1]
+
+    if end in _MAT:
+        m,_ = meanStd(start.mat)
+        # dis = 
+        pass
+    elif end in _LIST:
+        
+            
+        pass
+    
 
 # =========deffine functions==============
 DEF_FUNCTIONS       = {Crop         : crop ,
@@ -800,7 +833,7 @@ def test_process(mat,config,bTeaching=True,pprint=True
     # ======================
     dst         = Mat(mat)
     lb_funcs    = config["function"]["Functions"].split(",")
-    decision    = config["decision"]
+    # decision    = config["decision"]
     keys        = list(DEF_FUNCTIONS.keys())
     results     = []
     visualizes  = []

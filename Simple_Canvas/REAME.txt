@@ -5,17 +5,19 @@ pip freeze > requirements.txt
 - for window :
     pip install virtualenv
     virtualenv my_name
-    pip install -r requirements.txt
-
+    
     my_name\Scripts\activate
+    cd <project-folder>
+    pip install -r requirements.txt
     pyrcc5 -o resources.py resources.qrc
     python main.py
 - for ubuntu:
     pip install virtualenv
     virtualenv my_name
-    pip install -r requirements.txt
     
     source my_name/bin/activate
+    cd <project-folder>
+    pip install -r requirements.txt
     pyrcc5 -o resources.py resources.qrc
     python main.py
 # deactivate env

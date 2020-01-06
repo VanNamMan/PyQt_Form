@@ -46,126 +46,144 @@ class BoxImageResult(QDialog):
         addWidgets(layout,[self.frame,self.boxShapeStatus])
         self.setLayout(layout)
 
-class BoxDecision(QWidget):
+class BoxDecision(QDialog):
     def __init__(self,parent=None):
         super(BoxDecision,self).__init__(parent)
-        checkbox = partial(newCheckBox,self)
-        self.ch_mean            = checkbox("Use",slot=self.stateChanged)
-        self.ch_remove          = checkbox("Use",slot=self.stateChanged)
-        self.ch_countNoneZero   = checkbox("Use",slot=self.stateChanged)
-        self.ln_mean            = QLineEdit("100",self)
-        self.ln_vMean           = QLineEdit("0,0,0",self)
-        self.ln_countNoneZero   = QLineEdit("100",self)
-        self.ln_remove          = QLineEdit("0",self)
-
-        self.cbb_mean           = newCbb(["LessThan","MoreThan"],self.stateChanged)
-        self.cbb_countNoneZero  = newCbb(["LessThan","MoreThan"],self.stateChanged)
-        self.cbb_remove         = newCbb(["LessThan","MoreThan"],self.stateChanged)
-
-        self.ln_mean.textChanged.connect(self.stateChanged)
-        self.ln_vMean.textChanged.connect(self.stateChanged)
-        self.ln_countNoneZero.textChanged.connect(self.stateChanged)
-        self.ln_remove.textChanged.connect(self.stateChanged)
-
-        grid = QGridLayout()
-        grid.addWidget(self.ch_mean,0,0)
-        grid.addWidget(QLabel("value"),0,1)
-        grid.addWidget(self.ln_vMean,0,2)
-        grid.addWidget(QLabel("threshold"),1,1)
-        grid.addWidget(self.ln_mean,1,2)
-        grid.addWidget(QLabel("compare"),2,1)
-        grid.addWidget(self.cbb_mean,2,2)
-
-        group1 = QGroupBox("Mean")
-        group1.setLayout(grid)
-
-        grid = QGridLayout()
-        grid.addWidget(self.ch_countNoneZero,0,0)
-        grid.addWidget(QLabel("threshold"),0,1)
-        grid.addWidget(self.ln_countNoneZero,0,2)
-        grid.addWidget(QLabel("compare"),1,1)
-        grid.addWidget(self.cbb_countNoneZero,1,2)
-
-        group2 = QGroupBox("CountNoneZero")
-        group2.setLayout(grid)
-
-        grid = QGridLayout()
-        grid.addWidget(self.ch_remove,0,0)
-        grid.addWidget(QLabel("threshold"),0,1)
-        grid.addWidget(self.ln_remove,0,2)
-        grid.addWidget(QLabel("compare"),1,1)
-        grid.addWidget(self.cbb_remove,1,2)
-
-        group3 = QGroupBox("Remove")
-        group3.setLayout(grid)
+        self.plainText = QPlainTextEdit(self)
+        
+        bb = BB(BB.Ok|BB.Cancel)
+        bb.rejected.connect(self.reject)
+        bb.accepted.connect(self.accept)
 
         layout = QVBoxLayout()
-        addWidgets(layout,[group1,group2,group3])
+        addWidgets(layout,[self.plainText,bb])
         self.setLayout(layout)
-        self.decision = {'Mean': {'state': True, 'value': '0,0,0', 'threshold': '50', 'compare': 0}, 
-                        'CountNoneZero': {'state': True, 'threshold': '100', 'compare': 1},
-                        'Remove': {'state': True, 'threshold': '0', 'compare': 1}}
-    def setValue(self,decision):
-        state            = decision["Mean"]["state"]
-        threshold        = decision["Mean"]["threshold"]
-        vmean            = decision["Mean"]["value"]
-        i                = decision["Mean"]["compare"]
-        self.ch_mean.setChecked(state)
-        self.ln_vMean.setText(vmean)
-        self.ln_mean.setText(threshold)
-        self.cbb_mean.setCurrentIndex(i)
+    
+    def _eval_(self,plainText):
+        with open("decision.py","a") as ff:
+            ff.write(plainText)
+
+    def popUp(self):
+        self.move(QCursor.pos()) 
+        return self._eval_(self.plainText.toPlainText()) if self.exec_() else ""
+
+    #     checkbox = partial(newCheckBox,self)
+    #     self.ch_mean            = checkbox("Use",slot=self.stateChanged)
+    #     self.ch_remove          = checkbox("Use",slot=self.stateChanged)
+    #     self.ch_countNoneZero   = checkbox("Use",slot=self.stateChanged)
+    #     self.ln_mean            = QLineEdit("100",self)
+    #     self.ln_vMean           = QLineEdit("0,0,0",self)
+    #     self.ln_countNoneZero   = QLineEdit("100",self)
+    #     self.ln_remove          = QLineEdit("0",self)
+
+    #     self.cbb_mean           = newCbb(["LessThan","MoreThan"],self.stateChanged)
+    #     self.cbb_countNoneZero  = newCbb(["LessThan","MoreThan"],self.stateChanged)
+    #     self.cbb_remove         = newCbb(["LessThan","MoreThan"],self.stateChanged)
+
+    #     self.ln_mean.textChanged.connect(self.stateChanged)
+    #     self.ln_vMean.textChanged.connect(self.stateChanged)
+    #     self.ln_countNoneZero.textChanged.connect(self.stateChanged)
+    #     self.ln_remove.textChanged.connect(self.stateChanged)
+
+    #     grid = QGridLayout()
+    #     grid.addWidget(self.ch_mean,0,0)
+    #     grid.addWidget(QLabel("value"),0,1)
+    #     grid.addWidget(self.ln_vMean,0,2)
+    #     grid.addWidget(QLabel("threshold"),1,1)
+    #     grid.addWidget(self.ln_mean,1,2)
+    #     grid.addWidget(QLabel("compare"),2,1)
+    #     grid.addWidget(self.cbb_mean,2,2)
+
+    #     group1 = QGroupBox("Mean")
+    #     group1.setLayout(grid)
+
+    #     grid = QGridLayout()
+    #     grid.addWidget(self.ch_countNoneZero,0,0)
+    #     grid.addWidget(QLabel("threshold"),0,1)
+    #     grid.addWidget(self.ln_countNoneZero,0,2)
+    #     grid.addWidget(QLabel("compare"),1,1)
+    #     grid.addWidget(self.cbb_countNoneZero,1,2)
+
+    #     group2 = QGroupBox("CountNoneZero")
+    #     group2.setLayout(grid)
+
+    #     grid = QGridLayout()
+    #     grid.addWidget(self.ch_remove,0,0)
+    #     grid.addWidget(QLabel("threshold"),0,1)
+    #     grid.addWidget(self.ln_remove,0,2)
+    #     grid.addWidget(QLabel("compare"),1,1)
+    #     grid.addWidget(self.cbb_remove,1,2)
+
+    #     group3 = QGroupBox("Remove")
+    #     group3.setLayout(grid)
+
+    #     layout = QVBoxLayout()
+    #     addWidgets(layout,[group1,group2,group3])
+    #     self.setLayout(layout)
+    #     self.decision = {'Mean': {'state': True, 'value': '0,0,0', 'threshold': '50', 'compare': 0}, 
+    #                     'CountNoneZero': {'state': True, 'threshold': '100', 'compare': 1},
+    #                     'Remove': {'state': True, 'threshold': '0', 'compare': 1}}
+    # def setValue(self,decision):
+    #     state            = decision["Mean"]["state"]
+    #     threshold        = decision["Mean"]["threshold"]
+    #     vmean            = decision["Mean"]["value"]
+    #     i                = decision["Mean"]["compare"]
+    #     self.ch_mean.setChecked(state)
+    #     self.ln_vMean.setText(vmean)
+    #     self.ln_mean.setText(threshold)
+    #     self.cbb_mean.setCurrentIndex(i)
         
-        state            = decision["CountNoneZero"]["state"]
-        threshold        = decision["CountNoneZero"]["threshold"]
-        i                = decision["CountNoneZero"]["compare"]
-        self.ch_countNoneZero.setChecked(state)
-        self.ln_countNoneZero.setText(threshold)
-        self.cbb_countNoneZero.setCurrentIndex(i)
+    #     state            = decision["CountNoneZero"]["state"]
+    #     threshold        = decision["CountNoneZero"]["threshold"]
+    #     i                = decision["CountNoneZero"]["compare"]
+    #     self.ch_countNoneZero.setChecked(state)
+    #     self.ln_countNoneZero.setText(threshold)
+    #     self.cbb_countNoneZero.setCurrentIndex(i)
 
-        state            = decision["Remove"]["state"]
-        threshold        = decision["Remove"]["threshold"]
-        i                = decision["Remove"]["compare"]
-        self.ch_remove.setChecked(state)
-        self.ln_remove.setText(threshold)
-        self.cbb_remove.setCurrentIndex(i)
+    #     state            = decision["Remove"]["state"]
+    #     threshold        = decision["Remove"]["threshold"]
+    #     i                = decision["Remove"]["compare"]
+    #     self.ch_remove.setChecked(state)
+    #     self.ln_remove.setText(threshold)
+    #     self.cbb_remove.setCurrentIndex(i)
 
-        pass
-    def stateChanged(self):
-        isMean          = self.ch_mean.isChecked()
-        isCountNoneZero = self.ch_countNoneZero.isChecked()
-        isRemove        = self.ch_remove.isChecked()
+    #     pass
+    # def stateChanged(self):
+    #     isMean          = self.ch_mean.isChecked()
+    #     isCountNoneZero = self.ch_countNoneZero.isChecked()
+    #     isRemove        = self.ch_remove.isChecked()
 
-        type_mean       = self.cbb_mean.currentIndex()
-        type_noneZero   = self.cbb_countNoneZero.currentIndex()
-        type_remove     = self.cbb_remove.currentIndex()
+    #     type_mean       = self.cbb_mean.currentIndex()
+    #     type_noneZero   = self.cbb_countNoneZero.currentIndex()
+    #     type_remove     = self.cbb_remove.currentIndex()
 
-        thresh_mean     = self.ln_mean.text()
-        if thresh_mean == "":
-            thresh_mean = "0"
+    #     thresh_mean     = self.ln_mean.text()
+    #     if thresh_mean == "":
+    #         thresh_mean = "0"
 
-        vmean            = self.ln_vMean.text().split(",")
-        missing          = 3 - len(vmean)
-        if missing > 0:
-            for i in range(missing):
-                vmean+=["0"]
-        elif missing < 0:
-            vmean = vmean[:3]
-        for i in range(len(vmean)):
-            if vmean[i] == "":
-                vmean[i] = "0"
+    #     vmean            = self.ln_vMean.text().split(",")
+    #     missing          = 3 - len(vmean)
+    #     if missing > 0:
+    #         for i in range(missing):
+    #             vmean+=["0"]
+    #     elif missing < 0:
+    #         vmean = vmean[:3]
+    #     for i in range(len(vmean)):
+    #         if vmean[i] == "":
+    #             vmean[i] = "0"
         
-        vmean           = ",".join(vmean)
+    #     vmean           = ",".join(vmean)
 
-        noneZero        = self.ln_countNoneZero.text()
-        if noneZero == "":
-            noneZero = "0"
-        remove          = self.ln_remove.text()
-        if remove == "":
-            remove = "0"
+    #     noneZero        = self.ln_countNoneZero.text()
+    #     if noneZero == "":
+    #         noneZero = "0"
+    #     remove          = self.ln_remove.text()
+    #     if remove == "":
+    #         remove = "0"
 
-        self.decision["Mean"]       = {"state":isMean,"value":vmean,"threshold":thresh_mean,"compare":type_mean}
-        self.decision["CountNoneZero"]   = {"state":isCountNoneZero,"threshold":noneZero,"compare":type_noneZero}
-        self.decision["Remove"]     = {"state":isRemove,"threshold":remove,"compare":type_remove}
+    #     self.decision["Mean"]       = {"state":isMean,"value":vmean,"threshold":thresh_mean,"compare":type_mean}
+    #     self.decision["CountNoneZero"]   = {"state":isCountNoneZero,"threshold":noneZero,"compare":type_noneZero}
+    #     self.decision["Remove"]     = {"state":isRemove,"threshold":remove,"compare":type_remove}
 
 
 class BoxInrange(QWidget):
@@ -578,7 +596,7 @@ class Params(object):
         self.camera_id        = QLineEdit("...",parent)
 
         self.inrange          = BoxInrange(parent)
-        self.decision         = BoxDecision(parent)
+        # self.decision         = BoxDecision(parent)
 
         spin.setRange(0,255)
         spin.setValue(100)
@@ -626,8 +644,8 @@ class Params(object):
             self.match_multi.setChecked(eval(match["Multiple"]))
             inrange         = cfg["inrange"]
             self.inrange.setValue(inrange)
-            decision        = cfg["decision"]
-            self.decision.setValue(decision)
+            # decision        = cfg["decision"]
+            # self.decision.setValue(decision)
         except:
             print("has a problem when set items config")
             pass
@@ -764,7 +782,7 @@ class BoxParameter(QTreeWidget):
         _translate = QCoreApplication.translate
         self.headerItem().setText(0, _translate("", "Parameter"))
         self.headerItem().setText(1, _translate("", "Value"))
-        lbs = "Camera Crop Convert Binary Blur Morph Contours Remove OCR Matching InRange Decision".split()
+        lbs = "Camera Crop Convert Binary Blur Morph Contours Remove OCR Matching InRange".split()
         child = [
             "Type SN",
             "Box Qrect",
@@ -776,8 +794,7 @@ class BoxParameter(QTreeWidget):
             "Width Height Area",
             "Lang Oem Psm",
             "Score File Multiple",
-            "Range",
-            "Decision"
+            "Range"
         ]
         self.lb_item  = lbs
         self.lb_child = child
@@ -827,7 +844,7 @@ class BoxParameter(QTreeWidget):
         addWidget(9,2,self.items.match_multi)
 
         addWidget(10,0,self.items.inrange)
-        addWidget(11,0,self.items.decision)
+        # addWidget(11,0,self.items.decision)
 
     def addWidget(self,idIt,idChild,widget):
         if idChild is not None:
@@ -1147,11 +1164,11 @@ class BoxTeaching(QDialog):
             "S"    : item.inrange.range["S"],
             "V"    : item.inrange.range["V"],
         }
-        config["decision"] = {
-            "Mean"              : item.decision.decision["Mean"],
-            "CountNoneZero"     : item.decision.decision["CountNoneZero"],
-            "Remove"            : item.decision.decision["Remove"],
-        }
+        # config["decision"] = {
+        #     "Mean"              : item.decision.decision["Mean"],
+        #     "CountNoneZero"     : item.decision.decision["CountNoneZero"],
+        #     "Remove"            : item.decision.decision["Remove"],
+        # }
         return config
 
 
@@ -1161,9 +1178,12 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     wd = QMainWindow()
     # box = BoxSelectedFunction(["A","B","C"])
-    box = BoxDecision(wd)
-    # box.show()
-    wd.setCentralWidget(box)
-    wd.show()
+    box  = BoxDecision(wd)
+    try:
+        print(box.popUp())
+    except:
+        pass
+    # box.popUp()
+    # wd.setCentralWidget(box)
     # wd.setCentralWidget(canvas)
     sys.exit(app.exec_())

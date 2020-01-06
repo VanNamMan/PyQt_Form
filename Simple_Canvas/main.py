@@ -40,6 +40,8 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.lbRect)
         self.statusBar().addPermanentWidget(self.lbPos)
 
+        self.boxDecision        = BoxDecision(self)
+
         self.boxFontAndColor    = BoxFontColor()
         self.color              = (0,255,0)
         self.fs                 = 1
@@ -77,7 +79,8 @@ class MainWindow(QMainWindow):
         toggleLogImageResultDock.setShortcut("ctrl+shift+i")
         toggleLogDock.setShortcut("ctrl+shift+r")
         
-        self.camera               = BoxCamera(0.005,button=False,parent=self)
+        timeout = float(self.config["camera"]["timeout"])
+        self.camera               = BoxCamera(timeout,button=False,parent=self)
 
         # connect to camera
         self.boxProcess.but_start.clicked.connect(self.camera.start)
@@ -144,7 +147,7 @@ class MainWindow(QMainWindow):
                     ,toggleParaDock
                     ,toggleLogImageResultDock])
         addActions(edit,[font,editing,self.canvas.actions.test
-                ,self.canvas.actions.testAll,self.canvas.actions.delete])
+                ,self.canvas.actions.delete,self.canvas.actions.decision])
 
         #  signal
         #  connect mat from camera to image process
@@ -167,27 +170,13 @@ class MainWindow(QMainWindow):
         # defautl camera 
         self.camera.openCamera()
     def setShapeStatus(self,i,status,start,stop,inference_time):
-        if status:
-            status = "RUNNING"
-            color = Qt.red
-        else:
-            status = "FREE"
-            color = Qt.green
-        self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
-        self.boxImageResult.boxShapeStatus.item(i,2).setForeground(color)
-        # if start :
-        #     self.boxProcess.log("%s : Shape-%d process is starting."%(start,i))
-        # if stop :
-        #     self.boxProcess.log("%s : Shape-%d process is done."%(stop,i))
-        # item1 = self.canvas.boxTeaching.listShapeStatus.item(i)
-        # item2 = self.canvas.boxTeaching.listShapeTimeInfer.item(i)
-        # if item1 is not None and status:
-        #     item1.setText("RUNNING")
-        #     item1.setForeground(Qt.red)
-        # elif item1 is not None:
-        #     item1.setText("FREE")
-        #     item1.setForeground(Qt.green)
-        #     item2.setText("%d ms"%inference_time)
+        # if status:
+        #     status = "RUNNING"
+        #     color = Qt.red
+        # else:
+        #     status = "FREE"
+        #     color = Qt.green
+        # self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
         pass
     def run_process(self,mat):
         if mat is None:
@@ -300,10 +289,6 @@ class MainWindow(QMainWindow):
 
         self.canvas.items = lb_shapes
         addItems(self.boxTeaching.listShape,self.canvas.items)
-        status = ["free" for item in self.canvas.items]
-        addItems(self.boxTeaching.listShapeStatus,status)
-        status = ["0 ms" for item in self.canvas.items]
-        addItems(self.boxTeaching.listShapeTimeInfer,status)
 
         for i,lb in enumerate(lb_shapes):
             cfg                   = config[lb]

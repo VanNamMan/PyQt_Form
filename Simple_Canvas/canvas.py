@@ -184,8 +184,8 @@ class Canvas(QWidget):
         self.customContextMenuRequested.connect(self.popUpMenu)
         # 
         # # 
-        self.selectedShapeSignal.connect(self._selectedShape)
-        self.newShape.connect(self._newShape)
+        # self.selectedShapeSignal.connect(self._selectedShape)
+        # self.newShape.connect(self._newShape)
         self.drawShape.connect(self._drawShape)
         self.deleteShape.connect(self._delShape)
         pass
@@ -220,48 +220,48 @@ class Canvas(QWidget):
         self.boxTeaching.boxParameter.items.crop.setText(str_cvRect)
         self.boxTeaching.boxParameter.items.qrect.setText(str_qRect)
         pass
-    def _newShape(self,shape):
-        shape.config    = self.boxTeaching.getConfig()
+    # def _newShape(self,shape):
+    #     shape.config    = self.boxTeaching.getConfig()
 
-        label           = "shape-%d"%(len(self.shapes))
-        item = QListWidgetItem(label)
-        self.boxTeaching.listShape.addItem(item)
-        shape.selected  = True
-        self.shapeSelected = shape
-        self.shapes.append(shape)
-        self.items.append(item)
-        self.selectedShapeSignal.emit(True)
-        # self.apply()
-        pass
-    def _selectedShape(self,selected):
-        if selected:
-            index           = self.shapes.index(self.shapeSelected)
-            item            = self.boxTeaching.listShape.item(index)
-            config          = self.shapeSelected.config
-            item.setSelected(True)
-            self.shapeSelected.selected = True
-            self.boxTeaching.setConfig(config)
-            str_cvRect                  = "%d,%d,%d,%d"%self.shapeSelected.cvRect
-            self.window().lbRect.setText("[%s]"%str_cvRect)
+    #     label           = "shape-%d"%(len(self.shapes))
+    #     item = QListWidgetItem(label)
+    #     self.boxTeaching.listShape.addItem(item)
+    #     shape.selected  = True
+    #     self.shapeSelected = shape
+    #     self.shapes.append(shape)
+    #     self.items.append(item)
+    #     self.selectedShapeSignal.emit(True)
+    #     # self.apply()
+    #     pass
+    # def _selectedShape(self,selected):
+    #     if selected:
+    #         index           = self.shapes.index(self.shapeSelected)
+    #         item            = self.boxTeaching.listShape.item(index)
+    #         config          = self.shapeSelected.config
+    #         item.setSelected(True)
+    #         self.shapeSelected.selected = True
+    #         self.boxTeaching.setConfig(config)
+    #         str_cvRect                  = "%d,%d,%d,%d"%self.shapeSelected.cvRect
+    #         self.window().lbRect.setText("[%s]"%str_cvRect)
 
-            #  auto test
-            if self.boxTeaching.autotest.isChecked():
-                self.testActionSignal.emit(self.shapes[index])
+    #         #  auto test
+    #         if self.boxTeaching.autotest.isChecked():
+    #             self.testActionSignal.emit(self.shapes[index])
 
-            for j,shape in enumerate(self.shapes):
-                if shape != self.shapeSelected:
-                    shape.selected = False
-                    self.boxTeaching.listShape.item(j).setSelected(False)
+    #         for j,shape in enumerate(self.shapes):
+    #             if shape != self.shapeSelected:
+    #                 shape.selected = False
+    #                 self.boxTeaching.listShape.item(j).setSelected(False)
 
             
-            self.enabled_context(True)
+    #         self.enabled_context(True)
             
-        else:
-            for i,shape in enumerate(self.shapes):
-                shape.selected = False
-                self.boxTeaching.listShape.item(i).setSelected(False)
-            self.shapeSelected = None
-            self.enabled_context(False)
+    #     else:
+    #         for i,shape in enumerate(self.shapes):
+    #             shape.selected = False
+    #             self.boxTeaching.listShape.item(i).setSelected(False)
+    #         self.shapeSelected = None
+    #         self.enabled_context(False)
     
     def apply(self):
         if self.shapeSelected is None:

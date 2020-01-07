@@ -1,0 +1,29 @@
+
+#
+/home/mannam-pc/python-github/bin/python3
+#
+pip freeze > requirements.txt
+# create env 
+- for window :
+    pip install virtualenv
+    virtualenv my_name
+    
+    my_name\Scripts\activate
+    cd <project-folder>
+    pip install -r requirements.txt
+    pyrcc5 -o resources.py resources.qrc
+    python main.py
+- for ubuntu:
+    pip install virtualenv
+    virtualenv my_name
+    
+    source my_name/bin/activate
+    cd <project-folder>
+    pip install -r requirements.txt
+    pyrcc5 -o resources.py resources.qrc
+    python main.py
+# deactivate env
+    deactivate
+
+
+

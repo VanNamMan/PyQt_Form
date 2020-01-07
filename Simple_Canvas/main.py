@@ -168,6 +168,10 @@ class MainWindow(QMainWindow):
         self.canvas.testActionSignal.connect(self.predict_teaching)
         self.canvas.cropActionSignal.connect(self.cropImage)
 
+        self.canvas.newShape.connect(self._newShape)
+        self.canvas.selectedShapeSignal.connect(self._selectedShape)
+        # self.canvas.reCreateShape.connect(self._newShape)
+
         # init variable , loop camera
         self.OnInit() 
         # self.box_process = []
@@ -481,6 +485,60 @@ class MainWindow(QMainWindow):
         self.canvas.edit = True
         self.statusBar().showMessage("Editing")
         pass
+
+    def _newShape(self,shape):
+        shape.config    = self.boxTeaching.getConfig()
+        label           = "shape-%d"%(len(self.canvas.shapes))
+        item = QListWidgetItem(label)
+        self.boxTeaching.listShape.addItem(item)
+        shape.selected  = True
+        self.canvas.shapeSelected = shape
+        self.canvas.shapes.append(shape)
+        self.canvas.items.append(item)
+        self.canvas.selectedShapeSignal.emit(True)
+        pass
+    
+    def _selectedShape(self,selected):
+        if selected:
+            index           = self.canvas.shapes.index(self.canvas.shapeSelected)
+            item            = self.boxTeaching.listShape.item(index)
+            config          = self.canvas.shapeSelected.config
+            item.setSelected(True)
+            self.canvas.shapeSelected.selected = True
+            self.boxTeaching.setConfig(config)
+            str_cvRect                  = "%d,%d,%d,%d"%self.canvas.shapeSelected.cvRect
+            self.lbRect.setText("[%s]"%str_cvRect)
+
+            #  auto test
+            if self.boxTeaching.autotest.isChecked():
+                self.canvas.testActionSignal.emit(self.canvas.shapes[index])
+
+            for j,shape in enumerate(self.canvas.shapes):
+                if shape != self.canvas.shapeSelected:
+                    shape.selected = False
+                    self.boxTeaching.listShape.item(j).setSelected(False)
+
+            
+            self.canvas.enabled_context(True)
+            
+        else:
+            for i,shape in enumerate(self.canvas.shapes):
+                shape.selected = False
+                self.boxTeaching.listShape.item(i).setSelected(False)
+            self.canvas.shapeSelected = None
+            self.canvas.enabled_context(False)
+
+    # def reCreateShape(self,idx,tl,br,corner=None):
+    #     self.canvas.shapes[idx]            = Shape(QRect(tl,br),"shape-%d"%idx,self.canvas)
+    #     self.canvas.shapes[idx].corner     = corner
+    #     self.canvas.shapes[idx].config     = self.boxTeaching.getConfig()
+    #     self.canvas.shapeSelected          = self.canvas.shapes[idx]
+    #     self.canvas.selectedShapeSignal.emit(True)
+
+    #     #  auto test
+    #     if self.boxTeaching.autotest.isChecked():
+    #         self.canvas.testActionSignal.emit(self.canvas.shapes[idx])
+    #     return self.canvas.shapes[idx]
 
     def closeEvent(self,ev):
         # stop thread

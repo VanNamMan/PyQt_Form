@@ -1,6 +1,6 @@
-from utils import*
-from vision import*
-import resources
+from libs.utils import*
+# from vision import*
+# import resources
 
 BB = QDialogButtonBox
 DEFAUT_COLOR = QColor(0,255,0,255)
@@ -278,8 +278,8 @@ class BoxButtons(QDialog):
         if self.sender() == self.but_auto:
             window.stacker.setCurrentWidget(window.camera)
         elif self.sender() == self.but_manual:
-            # window.stacker.setCurrentWidget(window.manual)
-            self.window().camera.signal_emit = True
+            window.stacker.setCurrentWidget(window.manual)
+            # self.window().camera.signal_emit = True
             # runThread(self.actived)
         elif self.sender() == self.but_teach:
             window.stacker.setCurrentWidget(window.canvas)

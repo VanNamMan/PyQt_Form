@@ -821,17 +821,18 @@ def test_process(mat,config,bTeaching=True,pprint=True
                 results.append(dst)
                 if not bTeaching:
                     pass
-                    # visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint))
+                    # predict
+                    pred = True
+                    if len(results[-1].__out__()) > 0:
+                        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=True))
+                    else:
+                        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=False))
+                        pred = False
                 else:
                     visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=None))
+                    pred = True
                     pass
-    # predict
-    pred = True
-    if len(results[-1].__out__()) > 0:
-        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=True))
-    else:
-        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=False))
-        pred = False
+  
     
     # 
 

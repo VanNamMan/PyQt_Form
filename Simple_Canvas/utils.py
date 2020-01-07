@@ -120,6 +120,7 @@ def newCbb(items,slot=None):
     [cbb.addItem(item) for item in items]
     if slot is not None:
         cbb.activated.connect(slot)
+        cbb.setCurrentIndex(-1)
     return cbb
 def newButton(text,slot=None,icon=None):
     b = QPushButton(text)
@@ -197,20 +198,22 @@ class Timer(object):
     def LessThan(self,dt):
         return True if self.dt() < dt else False
 
-def showImage(image,label):
-    # width , height = label.width(),label.height()
-
-    # h,w = image.shape[:2]
-
-    # s = min(width/w,height/h)
-
-    # new_w = int(w*s)
-    # new_h = int(h*s)
+def showImage(image,label,fit_window=False):
+    if fit_window:
+        width , height  = label.width(),label.height()
+        h,w             = image.shape[:2]
+        s               = min(width/w,height/h)
+        new_w           = int(w*s)
+        new_h           = int(h*s)
+        new_img         = cv2.resize(image,(new_w,new_h))
+        qpix            = ndarray2pixmap(new_img)
+        label.setPixmap(qpix)
+    else:
+        qpix    = ndarray2pixmap(image)
+        label.setPixmap(qpix)
 
     # t0 = time.time()
-    # new_img = cv2.resize(image,(new_w,new_h))
     # print(time.time()-t0)
-    qpix    = ndarray2pixmap(image)
     # if len(image.shape) == 2:
     #     new_img = cv2.cvtColor(new_img, cv2.COLOR_GRAY2RGB)
     #     qpix = QPixmap.fromImage(ImageQt.ImageQt(misc.toimage(new_img)))
@@ -219,8 +222,6 @@ def showImage(image,label):
     #     new_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2RGB)
     #     qim = QImage(new_img.data,new_w,new_h,channel*new_w, QImage.Format_RGB888)
     #     qpix = QPixmap(qim)
-
-    label.setPixmap(qpix)
 
     return 1
 

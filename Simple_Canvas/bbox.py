@@ -40,7 +40,7 @@ class BoxImageResult(QDialog):
         super(BoxImageResult,self).__init__(parent)
         layout          = QVBoxLayout()
         self.frame      = QLabel(self)
-        self.boxShapeStatus = BoxTableWidget(["Shape","Inference time","Status"],self)
+        self.boxShapeStatus = BoxTableWidget(["Shape","Status","Inference time","Predict"],self)
         self.boxShapeStatus.setMaximumHeight(300)
         self.frame.setAlignment(Qt.AlignCenter)
         addWidgets(layout,[self.frame,self.boxShapeStatus])
@@ -278,28 +278,25 @@ class BoxButtons(QDialog):
         if self.sender() == self.but_auto:
             window.stacker.setCurrentWidget(window.camera)
         elif self.sender() == self.but_manual:
-            window.stacker.setCurrentWidget(window.manual)
+            # window.stacker.setCurrentWidget(window.manual)
+            self.window().camera.signal_emit = True
         elif self.sender() == self.but_teach:
             window.stacker.setCurrentWidget(window.canvas)
             window.actions.open_.setEnabled(True)
         elif self.sender() == self.but_data:
             window.stacker.setCurrentWidget(window.data)
         pass
-    
-class BoxCamera(QDialog):
-    WEBCAM = "Webcam"
-    BASLER = "Basler"
-    signal = pyqtSignal(np.ndarray)
-    fpsSignal     = pyqtSignal(float)
-    def __init__(self,timeout,emit_timeout,button=False,parent=None):
-        super(BoxCamera,self).__init__(parent)
-        self.setWindowTitle("Camera Dialog")
-        layout          = QVBoxLayout()
-        self.frame      = QLabel(self)
-        self.frame.setAlignment(Qt.AlignCenter)
 
+class BoxSettingCamera(QDialog):
+    WEBCAM      = "Webcam"
+    BASLER      = "Basler"
+    CONTINOUS   = "Continous"
+    ACTIVE      = "Active"
+    def __init__(self,parent=None):
+        super(BoxSettingCamera,self).__init__(parent)
         hlayoutTop          = QHBoxLayout()
         self.cbb_camera     = newCbb([self.WEBCAM,self.BASLER])
+        self.cbb_emit       = newCbb([self.CONTINOUS,self.ACTIVE])
         self.ln_idCamera    = QLineEdit("0",self)
         self.but_connect    = newButton("Open",self.openCamera,"openCamera")
         self.lb_fps         = QLabel("",self)
@@ -307,6 +304,67 @@ class BoxCamera(QDialog):
         widgets = [
             QLabel("Camera"),
             self.cbb_camera,
+            self.cbb_emit,
+            self.ln_idCamera,
+            self.but_connect,
+            self.lb_fps
+        ]
+        addWidgets(hlayoutTop,widgets)
+        self.setLayout(hlayoutTop)
+    
+    def cbbActived(self):
+        self.type = self.cbb_camera.currentText()
+        self.emit = self.cbb_emit.currentText()
+        pass
+    def popUp(self):
+        window = self.window()
+
+    def openCamera(self):
+        id_camera = self.ln_idCamera.text()
+        if self.but_connect.text() == "Open":
+            if self.type == self.WEBCAM:
+                # self.type = self.WEBCAM
+                id_camera = int(id_camera)
+                if self.cap is not None:
+                    self.cap.release()
+                self.cap = cv2.VideoCapture(id_camera)
+                if self.isOpened():
+                    self.window().boxProcess.log("Camera %d is opened"%id_camera)
+                    self.but_connect.setText("Close")
+                    self.cbb_camera.setEnabled(False)
+                    self.ln_idCamera.setEnabled(False)
+                else:
+                    self.window().boxProcess.log("Camera %d failed"%id_camera)
+            elif self.type == self.BASLER:
+                # self.type = self.BASLER
+                pass
+        pass
+
+class BoxCamera(QDialog):
+    WEBCAM      = "Webcam"
+    BASLER      = "Basler"
+    CONTINOUS   = "Continous"
+    ACTIVE      = "Active"
+    runProcSignal = pyqtSignal(np.ndarray)
+    fpsSignal     = pyqtSignal(float)
+    def __init__(self,timeout,emit_timeout = 0.01,top=False,button=False,parent=None):
+        super(BoxCamera,self).__init__(parent)
+        self.setWindowTitle("Camera Dialog")
+        layout          = QVBoxLayout()
+        self.frame      = QLabel(self)
+        self.frame.setAlignment(Qt.AlignCenter)
+
+        hlayoutTop          = QHBoxLayout()
+        self.cbb_camera     = newCbb([self.WEBCAM,self.BASLER],self.cbbActived)
+        self.cbb_emit       = newCbb([self.CONTINOUS,self.ACTIVE],self.cbbActived)
+        self.ln_idCamera    = QLineEdit("0",self)
+        self.but_connect    = newButton("Open",self.openCamera,"openCamera")
+        self.lb_fps         = QLabel("",self)
+        # self.lb_fps.setMaximumHeight(50)
+        widgets = [
+            QLabel("Camera"),
+            self.cbb_camera,
+            self.cbb_emit,
             self.ln_idCamera,
             self.but_connect,
             self.lb_fps
@@ -349,6 +407,8 @@ class BoxCamera(QDialog):
         self.type           = ""
         self.mat            = None
         self.timeout        = timeout
+        self.emit           = self.CONTINOUS # emit iamge process continous
+        self.signal_emit    = False # signal emit image process when emit type ACTIVED
         self.emit_timeout   = emit_timeout
         self.visualize  = {"boxs":None,"visualizes":None}
 
@@ -357,34 +417,38 @@ class BoxCamera(QDialog):
         self.t0 = 0
         self.fpsSignal.connect(self.setFPS)
 
+    def cbbActived(self):
+        self.type = self.cbb_camera.currentText()
+        self.emit = self.cbb_emit.currentText()
+        pass
     def openCamera(self):
-        camera = self.cbb_camera.currentText()
+        # camera = self.cbb_camera.currentText()
         id_camera = self.ln_idCamera.text()
         if self.but_connect.text() == "Open":
-            if camera == self.WEBCAM:
-                self.type = self.WEBCAM
+            if self.type == self.WEBCAM:
+                # self.type = self.WEBCAM
                 id_camera = int(id_camera)
                 if self.cap is not None:
                     self.cap.release()
                 self.cap = cv2.VideoCapture(id_camera)
                 if self.isOpened():
                     self.window().boxProcess.log("Camera %d is opened"%id_camera)
+                    self.but_connect.setText("Close")
+                    self.cbb_camera.setEnabled(False)
+                    self.ln_idCamera.setEnabled(False)
                 else:
                     self.window().boxProcess.log("Camera %d failed"%id_camera)
-            elif camera == self.BASLER:
-                self.type = self.BASLER
+            elif self.type == self.BASLER:
+                # self.type = self.BASLER
+                pass
             
-            self.but_connect.setText("Close")
-            self.cbb_camera.setEnabled(False)
-            self.ln_idCamera.setEnabled(False)
-
         elif self.but_connect.text() == "Close":
-            if camera == self.WEBCAM:
+            if self.type == self.WEBCAM:
                 self.cap.release()
                 if not self.isOpened():
                     id_camera = int(id_camera)
                     self.window().boxProcess.log("Camera %d is closed"%id_camera)
-            elif camera == self.BASLER:
+            elif self.type == self.BASLER:
                 pass
             self.but_connect.setText("Open")
             self.cbb_camera.setEnabled(True)
@@ -421,20 +485,26 @@ class BoxCamera(QDialog):
         if self.cap is None:
             return
         self.bStart     = True
+        # run main process
+        runThread(self.window().main_process,args=())
+        # live camera
         runThread(self.loop,args=())
-        # runThread(self.loopEmit,args=())
+        # 
         self.but_connect.setEnabled(False)
         self.window().boxProcess.log("start")
         self.window().boxTeaching.setEnabled(False)
         pass
     def stop(self):
         if self.bStart :
+            # stop camera
             self.bStart = False
+            # stop main process 
+            self.window().bRun = False
+            # 
             self.but_connect.setEnabled(True)
             self.window().boxProcess.log("stop")
             self.window().boxTeaching.setEnabled(True)
-            # for i in range (len(self.window().processes)):
-            #     self.window().processes[i].busy = False
+
         pass
     def reset(self):
         pass
@@ -447,14 +517,6 @@ class BoxCamera(QDialog):
         elif self.type == self.BASLER:
             if self.cap is not None:
                 pass
-    
-    # def loopEmit(self):
-    #     while self.bStart and self.isOpened():
-    #         if self.mat is not None:
-    #             self.window().resultSignal.emit(-1)
-    #             self.signal.emit(self.mat)
-
-    #         time.sleep(self.emit_timeout)
         
     def loop(self):
         print("loop camera started")
@@ -464,21 +526,17 @@ class BoxCamera(QDialog):
         while self.bStart and self.isOpened():
             self.mat = self.grab()
             if self.mat is not None:
-                # boxs         = self.visualize["boxs"]
-                # visualizes   = self.visualize["visualizes"]
-                if(time.time() - t0) >= self.emit_timeout:
-                    self.window().resultSignal.emit(-1)
-                    self.signal.emit(self.mat)
-                    t0 = time.time()
+                #
+                if self.emit == self.CONTINOUS:
+                    if(time.time() - t0) >= self.emit_timeout:
+                        self.runProcSignal.emit(self.mat)
+                        t0 = time.time()
+                elif self.signal_emit:
+                    self.runProcSignal.emit(self.mat)
+                    self.signal_emit = False
+                    pass
                 print("+++++BEGIN+++++++")
-                # if visualizes:
-                    
-                #     copy         = mat.copy()
-                #     for box,vis in zip(boxs,visualizes):
-                #         if box is not None:
-                #             x,y,w,h = box
-                #             copy[y:y+h,x:x+w] = vis
-                #     showImage(copy,self.frame)
+                
                 # else:
                 showImage(self.mat,self.frame)
                 print("+++++END+++++++")
@@ -489,20 +547,6 @@ class BoxCamera(QDialog):
                     self.fps = 0
                     self.t0 = time.time()
 
-                # emit to run process
-                # if self.isOpened():
-                #     mat_emit = self.grab()
-                #     if mmat is not None:
-
-                #  emit FPS
-                # fps+=1
-                # if(time.time() - t0) >= 1.0:
-                #     self.fps = fps
-                #     self.fpsSignal.emit(self.fps)
-                #     fps = 0
-                #     t0 = time.time()
-                
-
             time.sleep(self.timeout)
         pass
     
@@ -511,6 +555,24 @@ class BoxCamera(QDialog):
     def closeEvent(self):
         self.release()
         pass
+
+
+class BoxManual(QWidget):
+    def __init__(self,parent=None):
+        super(BoxManual,self).__init__(parent)
+        layout = QVBoxLayout()
+        button = newButton("Run Process",self.runManual)
+        layout.addWidget(button)
+        self.setLayout(layout)
+    
+    def runManual(self):
+        self.window().camera.signal_emit = True
+
+
+class BoxData(QWidget):
+    def __init__(self,parent=None):
+        super(BoxData,self).__init__(parent)
+
 
 class ColorDialog(QColorDialog):
 
@@ -1146,8 +1208,8 @@ class BoxTeaching(QDialog):
             "SN"       : item.camera_id.text()
         }
         config["frame"]   = {
-            "Width"    : self.window().canvas.width_,
-            "Height"   : self.window().canvas.height_
+            "Width"    : self.parent().window().canvas.width_,
+            "Height"   : self.parent().window().canvas.height_
         }
         config["function"] = {
             "Functions"     : functions
@@ -1212,12 +1274,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     wd = QMainWindow()
     # box = BoxSelectedFunction(["A","B","C"])
-    box  = BoxDecision(wd)
-    try:
-        print(box.popUp())
-    except:
-        pass
-    # box.popUp()
+    box  = BoxSettingCamera(wd)
+    box.show()
     # wd.setCentralWidget(box)
     # wd.setCentralWidget(canvas)
     sys.exit(app.exec_())

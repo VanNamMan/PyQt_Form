@@ -1,5 +1,7 @@
 
 #
+/home/mannam-pc/python-github/bin/python3
+#
 pip freeze > requirements.txt
 # create env 
 - for window :

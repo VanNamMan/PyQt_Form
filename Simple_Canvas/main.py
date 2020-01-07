@@ -7,13 +7,6 @@ import resources
 
 print("System : ",os.name)
 
-class Result(object):
-    def __init__(self):
-        self.n_ok = 0
-        self.n_ng = 0
-        self.n_total = 0
-        self.res = None
-    
 class Proc(object):
     def __init__(self,config):
         # 
@@ -28,7 +21,7 @@ class Proc(object):
         return not self.busy
 
 class MainWindow(QMainWindow):
-    resultSignal = pyqtSignal(Result) # (ok,ng,total) , result
+    resultSignal = pyqtSignal(int) # (ok,ng,total) , result
     shapeStatus  = pyqtSignal(int,bool,str,str,int) # idshape,status,start_time,stop_time,inference_time
     def __init__(self):
         super(MainWindow,self).__init__()
@@ -89,8 +82,8 @@ class MainWindow(QMainWindow):
         toggleLogDock.setShortcut("ctrl+shift+r")
         
         timeout = float(self.config["camera"]["timeout"])
-        self.camera               = BoxCamera(timeout,button=False,parent=self)
-
+        emit_timeout = float(self.config["camera"]["emit_timeout"])
+        self.camera               = BoxCamera(timeout,emit_timeout,button=False,parent=self)
         # connect to camera
         self.boxProcess.but_start.clicked.connect(self.camera.start)
         self.boxProcess.but_stop.clicked.connect(self.camera.stop)
@@ -177,9 +170,15 @@ class MainWindow(QMainWindow):
 
     def OnInit(self):
         self.processes = [] # control process for each shape
-        self.result    = Result() #
+        self.result    = -1 #
+        self.n_ok      = 0
+        self.n_ng      = 0
+        self.n_total   = 0
+        self.fps = 0
+        self.t0 = time.time()
         # defautl camera 
         self.camera.openCamera()
+        self.resultSignal.emit(-1)
     def showShapeStatus(self,i,status,start,stop,inference_time):
         if status:
             status = "RUNNING"
@@ -188,45 +187,54 @@ class MainWindow(QMainWindow):
             status = "FREE"
             color = Qt.green
         self.boxImageResult.boxShapeStatus[i] = ["shape-%d"%i,"%d ms"%inference_time,status]
+        self.boxImageResult.boxShapeStatus.item(i,2).setForeground(color)
         pass
 
     def showProcessResult(self,result): # Result
-        n_ok = result.n_ok
-        n_ng = result.n_ng
-        n_total = result.n_total
-        nums = (n_ok,n_ng,n_total)
-        self.boxProcess.showResult(nums,result.res)
+        nums = (self.n_ok,self.n_ng,self.n_total)
+        self.boxProcess.showResult(nums,result)
+        # mat output
+        if result == -1:
+            return
+        boxs         = self.camera.visualize["boxs"]
+        visualizes   = self.camera.visualize["visualizes"]      
+        copy         = self.camera.mat.copy()
+        for box,vis in zip(boxs,visualizes):
+            # if box is not None:
+            x,y,w,h = box
+            copy[y:y+h,x:x+w] = vis
+        showImage(copy,self.boxImageResult.frame)
+        # 
 
     def doneProcess(self,processes):
         for proc in self.processes:
-            if not proc.isDone() :
-                self.result.res = None
+            if not proc.isDone():
+                self.result = -1
                 return False
 
         for proc in self.processes:
             if proc.res is None:
-                self.result.res = None
+                self.result = -1
                 return True
         
-        self.result.res = True
+        self.result = 1
         for proc in self.processes:
             if not proc.res:
-                self.result.res = False
+                self.result = 0
+                self.n_ng += 1
                 break
-        if self.result.res :
-            self.result.n_ok += 1
-            self.result.n_ok = min(self.result.n_ok,1000000)
-        else:
-            self.result.n_ng += 1
-            self.result.n_ng = min(self.result.n_ng,1000000)
-
-        self.result.n_total = self.result.n_ok + self.result.n_ng
-
+        if self.result == 1:
+            self.n_ok += 1
+            
+        self.n_total = self.n_ok + self.n_ng
+        # show num ng,ok and mat output 
+        self.resultSignal.emit(self.result)
         return True
 
     def shapeProc(self,mat,i,proc):
         # update process status 
         self.processes[i].busy = True
+        self.processes[i].pred = None
         # start = getStrTime()
         self.shapeStatus.emit(i,True,"","",self.processes[i].time_inference)
         t0 = time.time()
@@ -249,14 +257,11 @@ class MainWindow(QMainWindow):
     def run_process(self,mat):
         if mat is None:
             return
-        # 
+        #  
         if self.doneProcess(self.processes):
-            self.resultSignal.emit(self.result)
             for i,proc in enumerate(self.processes):
                 # if not proc.isDone():continue
                 runThread(self.shapeProc,args=(mat,i,proc))
-        else:
-            self.resultSignal.emit(self.result)
         pass
     def apply(self):
         if self.canvas.shapeSelected is None:

@@ -291,7 +291,7 @@ class BoxCamera(QDialog):
     BASLER = "Basler"
     signal = pyqtSignal(np.ndarray)
     fpsSignal     = pyqtSignal(float)
-    def __init__(self,timeout,button=False,parent=None):
+    def __init__(self,timeout,emit_timeout,button=False,parent=None):
         super(BoxCamera,self).__init__(parent)
         self.setWindowTitle("Camera Dialog")
         layout          = QVBoxLayout()
@@ -344,14 +344,17 @@ class BoxCamera(QDialog):
         addWidgets(layout,widgets)
         self.setLayout(layout)
 
-        self.cap        = None
-        self.type       = ""
-        self.mat        = None
-        self.timeout    = timeout
+        self.cap            = None
+        self.mat            = None
+        self.type           = ""
+        self.mat            = None
+        self.timeout        = timeout
+        self.emit_timeout   = emit_timeout
         self.visualize  = {"boxs":None,"visualizes":None}
 
         self.bStart = False
         self.fps = 0
+        self.t0 = 0
         self.fpsSignal.connect(self.setFPS)
 
     def openCamera(self):
@@ -419,6 +422,7 @@ class BoxCamera(QDialog):
             return
         self.bStart     = True
         runThread(self.loop,args=())
+        # runThread(self.loopEmit,args=())
         self.but_connect.setEnabled(False)
         self.window().boxProcess.log("start")
         self.window().boxTeaching.setEnabled(False)
@@ -443,26 +447,47 @@ class BoxCamera(QDialog):
         elif self.type == self.BASLER:
             if self.cap is not None:
                 pass
+    
+    # def loopEmit(self):
+    #     while self.bStart and self.isOpened():
+    #         if self.mat is not None:
+    #             self.window().resultSignal.emit(-1)
+    #             self.signal.emit(self.mat)
 
+    #         time.sleep(self.emit_timeout)
+        
     def loop(self):
         print("loop camera started")
         fps = 0
         t0 = time.time()
+        self.t0 = time.time()
         while self.bStart and self.isOpened():
-            mat = self.grab()
-            if mat is not None:
-                boxs         = self.visualize["boxs"]
-                visualizes   = self.visualize["visualizes"]
-                copy         = mat.copy()
-                self.signal.emit(mat)
-                if visualizes:
-                    for box,vis in zip(boxs,visualizes):
-                        if box is not None:
-                            x,y,w,h = box
-                            copy[y:y+h,x:x+w] = vis
-                    showImage(copy,self.frame)
-                else:
-                    showImage(mat,self.frame)
+            self.mat = self.grab()
+            if self.mat is not None:
+                # boxs         = self.visualize["boxs"]
+                # visualizes   = self.visualize["visualizes"]
+                if(time.time() - t0) >= self.emit_timeout:
+                    self.window().resultSignal.emit(-1)
+                    self.signal.emit(self.mat)
+                    t0 = time.time()
+                print("+++++BEGIN+++++++")
+                # if visualizes:
+                    
+                #     copy         = mat.copy()
+                #     for box,vis in zip(boxs,visualizes):
+                #         if box is not None:
+                #             x,y,w,h = box
+                #             copy[y:y+h,x:x+w] = vis
+                #     showImage(copy,self.frame)
+                # else:
+                showImage(self.mat,self.frame)
+                print("+++++END+++++++")
+
+                self.fps+=1
+                if(time.time() - self.t0) >= 1.0:
+                    self.fpsSignal.emit(self.fps)
+                    self.fps = 0
+                    self.t0 = time.time()
 
                 # emit to run process
                 # if self.isOpened():
@@ -470,12 +495,13 @@ class BoxCamera(QDialog):
                 #     if mmat is not None:
 
                 #  emit FPS
-                fps+=1
-                if(time.time() - t0) >= 1.0:
-                    self.fps = fps
-                    self.fpsSignal.emit(self.fps)
-                    fps = 0
-                    t0 = time.time()
+                # fps+=1
+                # if(time.time() - t0) >= 1.0:
+                #     self.fps = fps
+                #     self.fpsSignal.emit(self.fps)
+                #     fps = 0
+                #     t0 = time.time()
+                
 
             time.sleep(self.timeout)
         pass
@@ -760,21 +786,20 @@ class BoxProcessResult(QDialog):
         addWidgets(layout,widget)
 
         self.setLayout(layout)
-        self.showResult([8,9,17],None)
-    
+
     def clear(self):
         self.list.clear()
     def log(self,text):
         self.list.addItem("%s : %s"%(getStrTime(),text))
     
-    def showResult(self,nums,res=None):
+    def showResult(self,nums,res=-1):
         style = "color:black;font:bold 36px;border-width:3px;background:%s \
         ;border-color:black;border-style: outset"
         ok , ng ,total = nums
         self.numOK.setText("%d"%ok)
         self.numNG.setText("%d"%ng)
         self.numTotal.setText("%d"%total)
-        if res is None:
+        if res == -1:
             self.lb_result.setText("Wait")
             self.lb_result.setStyleSheet(style%"yellow")
         else:

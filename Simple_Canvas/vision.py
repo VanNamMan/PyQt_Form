@@ -636,20 +636,21 @@ def convexHull(src:Contours,config):
         points = []
         dis = []
         hull = cv2.convexHull(cnts[i],returnPoints=False)
-        hull_cnt = []
+        # hull_cnt = []
         defects = cv2.convexityDefects(cnts[i],hull)
-        for j in range(defects.shape[0]):
-            s,e,f,d = defects[j,0]
-            far = tuple(cnts[i][f][0])
-            dis.append(d)
-            points.append(far)
-        
+        if defects is not None:
+            for j in range(defects.shape[0]):
+                s,e,f,d = defects[j,0]
+                far = tuple(cnts[i][f][0])
+                dis.append(d)
+                points.append(far)
+            
 
-        hull_cnt = cnts[i][hull[:,0]]
-        argmax = np.argmax(dis)
-        dst.points.append(points)
-        dst.distances.append(dis)
-        dst.convexs.append(hull_cnt)
+            hull_cnt = cnts[i][hull[:,0]]
+            argmax = np.argmax(dis)
+            dst.points.append(points)
+            dst.distances.append(dis)
+            dst.convexs.append(hull_cnt)
 
     return dst
 
@@ -827,9 +828,9 @@ def test_process(mat,config,bTeaching=True,pprint=True
     # predict
     pred = True
     if len(results[-1].__out__()) > 0:
-        visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=True))
+        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=True))
     else:
-        visualizes.append(dst.visualize(mat=results[-1].mat,pprint=pprint,res=False))
+        visualizes.append(dst.visualize(mat=results[0].mat,pprint=pprint,res=False))
         pred = False
     
     # 

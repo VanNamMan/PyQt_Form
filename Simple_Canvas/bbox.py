@@ -279,66 +279,22 @@ class BoxButtons(QDialog):
             window.stacker.setCurrentWidget(window.camera)
         elif self.sender() == self.but_manual:
             # window.stacker.setCurrentWidget(window.manual)
-            self.window().camera.signal_emit = True
+            # self.window().camera.signal_emit = True
+            runThread(self.actived)
         elif self.sender() == self.but_teach:
             window.stacker.setCurrentWidget(window.canvas)
             window.actions.open_.setEnabled(True)
         elif self.sender() == self.but_data:
             window.stacker.setCurrentWidget(window.data)
         pass
-
-class BoxSettingCamera(QDialog):
-    WEBCAM      = "Webcam"
-    BASLER      = "Basler"
-    CONTINOUS   = "Continous"
-    ACTIVE      = "Active"
-    def __init__(self,parent=None):
-        super(BoxSettingCamera,self).__init__(parent)
-        hlayoutTop          = QHBoxLayout()
-        self.cbb_camera     = newCbb([self.WEBCAM,self.BASLER])
-        self.cbb_emit       = newCbb([self.CONTINOUS,self.ACTIVE])
-        self.ln_idCamera    = QLineEdit("0",self)
-        self.but_connect    = newButton("Open",self.openCamera,"openCamera")
-        self.lb_fps         = QLabel("",self)
-        # self.lb_fps.setMaximumHeight(50)
-        widgets = [
-            QLabel("Camera"),
-            self.cbb_camera,
-            self.cbb_emit,
-            self.ln_idCamera,
-            self.but_connect,
-            self.lb_fps
-        ]
-        addWidgets(hlayoutTop,widgets)
-        self.setLayout(hlayoutTop)
     
-    def cbbActived(self):
-        self.type = self.cbb_camera.currentText()
-        self.emit = self.cbb_emit.currentText()
-        pass
-    def popUp(self):
-        window = self.window()
-
-    def openCamera(self):
-        id_camera = self.ln_idCamera.text()
-        if self.but_connect.text() == "Open":
-            if self.type == self.WEBCAM:
-                # self.type = self.WEBCAM
-                id_camera = int(id_camera)
-                if self.cap is not None:
-                    self.cap.release()
-                self.cap = cv2.VideoCapture(id_camera)
-                if self.isOpened():
-                    self.window().boxProcess.log("Camera %d is opened"%id_camera)
-                    self.but_connect.setText("Close")
-                    self.cbb_camera.setEnabled(False)
-                    self.ln_idCamera.setEnabled(False)
-                else:
-                    self.window().boxProcess.log("Camera %d failed"%id_camera)
-            elif self.type == self.BASLER:
-                # self.type = self.BASLER
-                pass
-        pass
+    def actived(self):
+        n = 0
+        while n < 10e4:
+            n+=1
+            self.window().camera.signal_emit = True
+            time.sleep(0.02)
+        print("BYE BYE")
 
 class BoxCamera(QDialog):
     WEBCAM      = "Webcam"
@@ -1081,6 +1037,7 @@ class BoxTeaching(QDialog):
         super(BoxTeaching,self).__init__(parent)
         layout = QVBoxLayout()
         funcs  = readline(defautl_function)
+        self.parent                 = parent
         self.model_folder           = model_folder
         self.boxModel               = BoxModel(model_folder)
         self.listShape              = QListWidget(self)
@@ -1148,9 +1105,9 @@ class BoxTeaching(QDialog):
         self.setLayout(layout)
     
     def apply(self):
-        self.window().apply()
+        self.parent.apply()
     def inRange(self,range_):
-        window = self.window()
+        window = self.parent
         h,H = range_["H"]
         s,S = range_["S"]
         v,V = range_["V"]
@@ -1159,7 +1116,7 @@ class BoxTeaching(QDialog):
             window.canvas.testActionSignal.emit(window.canvas.shapes[idx])
 
     def stateChanged(self,state):
-        shapes = self.window().canvas.shapes
+        shapes = self.parent.canvas.shapes
         labels = [shape.label for shape in shapes] + ["None"]
         self.cbb_shape.clear()
         addItems(self.cbb_shape,labels)
@@ -1167,14 +1124,14 @@ class BoxTeaching(QDialog):
         # self.window().autoPredict()
         pass
     def save(self):
-        self.window().saveAll()
+        self.parent.saveAll()
         pass
     def itemClicked(self,item):
         row = self.listShape.currentRow()
-        for i in range(len(self.window().canvas.shapes)):
-            self.window().canvas.shapes[i].selected = row == i
-            self.window().canvas.shapeSelected      = self.window().canvas.shapes[row]
-        self.window().canvas.selectedShapeSignal.emit(True)
+        for i in range(len(self.parent.canvas.shapes)):
+            self.parent.canvas.shapes[i].selected = row == i
+            self.parent.canvas.shapeSelected      = self.parent.canvas.shapes[row]
+        self.parent.canvas.selectedShapeSignal.emit(True)
 
         pass
     def funcClicked(self,item):
@@ -1208,8 +1165,8 @@ class BoxTeaching(QDialog):
             "SN"       : item.camera_id.text()
         }
         config["frame"]   = {
-            "Width"    : self.parent().window().canvas.width_,
-            "Height"   : self.parent().window().canvas.height_
+            "Width"    : self.parent.canvas.width_,
+            "Height"   : self.parent.canvas.height_
         }
         config["function"] = {
             "Functions"     : functions

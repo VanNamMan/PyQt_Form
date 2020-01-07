@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
 
         self.dock_teach = QDockWidget('BoxTeaching', self)
         self.dock_teach.setWidget(self.boxTeaching)
-        self.dock_teach.setFeatures(dockFeatures)
+        self.dock_teach.setFeatures(QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable)
         
         self.boxProcess  = BoxProcessResult(self)
         self.dock_proc = QDockWidget('Result', self)
@@ -259,10 +259,10 @@ class MainWindow(QMainWindow):
         self.processes[i].busy = True
         self.processes[i].pred = None
         # start = getStrTime()
-        self.shapeStatus.emit(i,True,self.processes[i].time_inference,-1)
+        # self.shapeStatus.emit(i,True,self.processes[i].time_inference,-1)
         t0 = time.time()
         # image process
-        results,vis,pred = self.predict(self.processes[i].config,mat,pprint=True)
+        results,vis,pred = self.predict(self.processes[i].config,mat,pprint=False)
         # show result 
         self.processes[i].box = results[0].roi
         self.processes[i].visualize = (vis[-1])
@@ -275,7 +275,7 @@ class MainWindow(QMainWindow):
         # stop = getStrTime()
         self.processes[i].time_inference = int((time.time()-t0)*1000)
         self.processes[i].busy = False
-        self.shapeStatus.emit(i,False,self.processes[i].time_inference,self.processes[i].res)
+        # self.shapeStatus.emit(i,False,self.processes[i].time_inference,self.processes[i].res)
         pass
     
     def LOG(self,text):
@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         pixmap                                     = ndarray2pixmap(visualizes[-1])
         self.canvas.shapes[index].result["pixmap"] = pixmap.scaled(w,h)
         pass
-    def predict(self,config=None,mat=None,pprint=True):
+    def predict(self,config=None,mat=None,pprint=False):
         if config is None or mat is None:
             return
         return test_process(mat,config,bTeaching=False,pprint=pprint)

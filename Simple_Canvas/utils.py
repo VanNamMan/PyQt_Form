@@ -158,7 +158,7 @@ def mkdir(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-def runThread(target,args):
+def runThread(target,args=()):
     thread = threading.Thread(target=target,args=args)
     thread.start()
 

@@ -301,8 +301,9 @@ class BoxCamera(QDialog):
     BASLER      = "Basler"
     CONTINOUS   = "Continous"
     ACTIVE      = "Active"
-    runProcSignal = pyqtSignal(np.ndarray)
-    fpsSignal     = pyqtSignal(float)
+    runProcSignal   = pyqtSignal(np.ndarray)
+    fpsSignal       = pyqtSignal(float)
+    showImageSignal = pyqtSignal(np.ndarray)
     def __init__(self,timeout,emit_timeout = 0.01,top=False,button=False,parent=None):
         super(BoxCamera,self).__init__(parent)
         self.setWindowTitle("Camera Dialog")
@@ -372,11 +373,13 @@ class BoxCamera(QDialog):
         self.fps = 0
         self.t0 = 0
         self.fpsSignal.connect(self.setFPS)
+        self.showImageSignal.connect(self.showImage)
 
     def cbbActived(self):
         self.type = self.cbb_camera.currentText()
         self.emit = self.cbb_emit.currentText()
         pass
+    
     def openCamera(self):
         # camera = self.cbb_camera.currentText()
         id_camera = self.ln_idCamera.text()
@@ -473,7 +476,11 @@ class BoxCamera(QDialog):
         elif self.type == self.BASLER:
             if self.cap is not None:
                 pass
-        
+
+    def showImage(self,mat):
+        showImage(mat,self.frame)
+        pass
+
     def loop(self):
         print("loop camera started")
         fps = 0
@@ -494,7 +501,7 @@ class BoxCamera(QDialog):
                 print("+++++BEGIN+++++++")
                 
                 # else:
-                showImage(self.mat,self.frame)
+                self.showImageSignal.emit(self.mat)
                 print("+++++END+++++++")
 
                 self.fps+=1

@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
         self.processes[i].busy = True
         self.processes[i].pred = None
         # start = getStrTime()
-        # self.shapeStatus.emit(i,True,self.processes[i].time_inference,-1)
+        self.shapeStatus.emit(i,True,self.processes[i].time_inference,-1)
         t0 = time.time()
         # image process
         results,vis,pred = self.predict(self.processes[i].config,mat,pprint=False)
@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
         # stop = getStrTime()
         self.processes[i].time_inference = int((time.time()-t0)*1000)
         self.processes[i].busy = False
-        # self.shapeStatus.emit(i,False,self.processes[i].time_inference,self.processes[i].res)
+        self.shapeStatus.emit(i,False,self.processes[i].time_inference,self.processes[i].res)
         pass
     
     def LOG(self,text):
@@ -306,6 +306,7 @@ class MainWindow(QMainWindow):
             elif iStep == STEP_PREV_RUN:
                 self.start_check = False # release signal
                 self.resultSignal.emit(-1)
+                self.boxProcess.clear()
                 self.LOG("start check vision")
                 iStep = STEP_RUN_VISION
             # run vision thread

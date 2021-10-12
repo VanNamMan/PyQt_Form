@@ -1,5 +1,5 @@
 numpy==1.18.0
-opencv-contrib-python==3.4.1.15
+opencv-contrib-python==4.2.0.32
 pandas==0.25.3
 Pillow==7.0.0
 PyQt5==5.14.0
